@@ -1,0 +1,8 @@
+node_modules
+.pnpm-store
+.next
+dist
+apps/api/src/generated/prisma
+.env
+.env.local
+infra/judge0/judge0.conf

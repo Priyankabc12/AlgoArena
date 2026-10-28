@@ -1,0 +1,12 @@
+{
+  "name": "coding-practice-platform",
+  "private": true,
+  "packageManager": "pnpm@11.12.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @practice/api --filter @practice/web dev",
+    "build": "pnpm --filter @practice/api build && pnpm --filter @practice/web build",
+    "typecheck": "pnpm --filter @practice/api typecheck && pnpm --filter @practice/web typecheck",
+    "judge0:up": "docker compose -f infra/judge0/docker-compose.yml up -d",
+    "judge0:down": "docker compose -f infra/judge0/docker-compose.yml down"
+  }
+}

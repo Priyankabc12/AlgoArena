@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Question {
+  id          Int        @id @default(autoincrement())
+  slug        String     @unique
+  title       String
+  statement   String
+  timeLimit   Float      @default(2) @map("time_limit")
+  memoryLimit Int        @default(128000) @map("memory_limit")
+  testCases   TestCase[]
+
+  @@map("questions")
+}
+
+model TestCase {
+  id             Int      @id @default(autoincrement())
+  questionId     Int      @map("question_id")
+  stdin          String   @default("")
+  expectedOutput String   @map("expected_output")
+  isSample       Boolean  @default(false) @map("is_sample")
+  position       Int
+  question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, position])
+  @@map("test_cases")
+}
