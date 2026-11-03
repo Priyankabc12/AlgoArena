@@ -6,4 +6,9 @@ label { display: grid; gap: .4rem; font-weight: 600; }
 input, textarea, button { font: inherit; padding: .65rem; }
 textarea { font-family: ui-monospace, monospace; resize: vertical; }
 button { width: fit-content; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .55; }
+.auth-panel { margin-bottom: 2rem; padding: 1rem; border: 1px solid #d2d2d7; border-radius: .5rem; background: white; }
+.auth-panel h2 { margin-top: 0; }
+.link-button { margin-top: 1rem; padding: 0; border: 0; color: #06c; background: none; }
+.error { color: #b42318; }
 pre { overflow: auto; padding: 1rem; background: #111; color: #d7f9d0; white-space: pre-wrap; }
