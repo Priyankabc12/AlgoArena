@@ -9,7 +9,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "start": "node dist/index.js",
-    "test": "prisma generate && NODE_ENV=test tsx --test src/index.test.ts",
+    "test": "prisma generate && NODE_ENV=test tsx --test src/index.test.ts src/routes/questions.test.ts",
     "typecheck": "prisma generate && tsc --noEmit"
   },
   "dependencies": {
