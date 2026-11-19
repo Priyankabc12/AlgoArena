@@ -2,7 +2,9 @@ import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import express from "express";
 import { auth } from "./auth.js";
+import { executionsRouter } from "./executions.js";
 import { prisma } from "./prisma.js";
+import { legacyExecutionSchema, questionInputSchema } from "./validation.js";
 
 export const app = express();
 const port = Number(process.env.PORT ?? 4000);
@@ -12,6 +14,7 @@ const webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
 app.use(cors({ origin: webOrigin, credentials: true }));
 app.all("/api/auth/*splat", toNodeHandler(auth));
 app.use(express.json());
+app.use("/api", executionsRouter);
 
 app.get("/health", (_request, response) => {
   response.json({ status: "ok" });
@@ -32,12 +35,14 @@ app.post("/execute", async (request, response) => {
     return;
   }
 
-  const { source_code, language_id, stdin } = request.body ?? {};
+  const parsed = legacyExecutionSchema.safeParse(request.body);
 
-  if (typeof source_code !== "string" || !Number.isInteger(language_id) || (stdin !== undefined && typeof stdin !== "string")) {
+  if (!parsed.success) {
     response.status(400).json({ error: "source_code (string), language_id (integer), and optional stdin (string) are required." });
     return;
   }
+
+  const { source_code, language_id, stdin } = parsed.data;
 
   try {
     const judgeResponse = await fetch(`${judge0Url}/submissions?wait=true`, {
@@ -51,20 +56,6 @@ app.post("/execute", async (request, response) => {
     response.status(502).json({ error: "Judge0 is unavailable." });
   }
 });
-
-type TestCaseInput = {
-  stdin?: string;
-  expectedOutput: string;
-  isSample?: boolean;
-};
-
-function isTestCaseInput(value: unknown): value is TestCaseInput {
-  if (typeof value !== "object" || value === null) return false;
-  const testCase = value as Record<string, unknown>;
-  return (testCase.stdin === undefined || typeof testCase.stdin === "string")
-    && typeof testCase.expectedOutput === "string"
-    && (testCase.isSample === undefined || typeof testCase.isSample === "boolean");
-}
 
 app.post("/questions", async (request, response) => {
   let session;
@@ -86,23 +77,14 @@ app.post("/questions", async (request, response) => {
     return;
   }
 
-  const { slug, title, statement, timeLimit, memoryLimit, testCases } = request.body ?? {};
-  const valid = typeof slug === "string"
-    && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
-    && typeof title === "string"
-    && title.trim().length > 0
-    && typeof statement === "string"
-    && statement.trim().length > 0
-    && (timeLimit === undefined || (typeof timeLimit === "number" && Number.isFinite(timeLimit) && timeLimit > 0))
-    && (memoryLimit === undefined || (Number.isInteger(memoryLimit) && memoryLimit > 0))
-    && Array.isArray(testCases)
-    && testCases.length > 0
-    && testCases.every(isTestCaseInput);
+  const parsed = questionInputSchema.safeParse(request.body);
 
-  if (!valid) {
+  if (!parsed.success) {
     response.status(400).json({ error: "A valid slug, title, statement, limits, and at least one test case are required." });
     return;
   }
+
+  const { slug, title, statement, timeLimit, memoryLimit, testCases } = parsed.data;
 
   try {
     const question = await prisma.question.create({
@@ -114,7 +96,7 @@ app.post("/questions", async (request, response) => {
         ...(memoryLimit === undefined ? {} : { memoryLimit }),
         createdBy: { connect: { id: session.user.id } },
         testCases: {
-          create: testCases.map((testCase: TestCaseInput, position: number) => ({
+          create: testCases.map((testCase, position) => ({
             stdin: testCase.stdin ?? "",
             expectedOutput: testCase.expectedOutput,
             isSample: testCase.isSample ?? false,
