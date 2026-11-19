@@ -7,47 +7,61 @@ datasource db {
   provider = "postgresql"
 }
 
+enum SubmissionStatus {
+  PENDING
+  ACCEPTED
+  WRONG_ANSWER
+  TIME_LIMIT_EXCEEDED
+  MEMORY_LIMIT_EXCEEDED
+  COMPILATION_ERROR
+  RUNTIME_ERROR
+  INTERNAL_ERROR
+}
+
 model Question {
-  id          Int        @id @default(autoincrement())
-  slug        String     @unique
+  id          Int          @id @default(autoincrement())
+  slug        String       @unique
   title       String
   statement   String
-  timeLimit   Float      @default(2) @map("time_limit")
-  memoryLimit Int        @default(128000) @map("memory_limit")
-  createdById String     @map("created_by_id")
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("updated_at")
-  createdBy   User       @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  timeLimit   Float        @default(2) @map("time_limit")
+  memoryLimit Int          @default(128000) @map("memory_limit")
+  createdById String       @map("created_by_id")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  createdBy   User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
   testCases   TestCase[]
+  submissions Submission[]
 
   @@map("questions")
 }
 
 model TestCase {
-  id             Int      @id @default(autoincrement())
-  questionId     Int      @map("question_id")
-  stdin          String   @default("")
-  expectedOutput String   @map("expected_output")
-  isSample       Boolean  @default(false) @map("is_sample")
+  id             Int                    @id @default(autoincrement())
+  questionId     Int                    @map("question_id")
+  stdin          String                 @default("")
+  expectedOutput String                 @map("expected_output")
+  isSample       Boolean                @default(false) @map("is_sample")
   position       Int
-  question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  question       Question               @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  caseResults    SubmissionCaseResult[]
 
   @@unique([questionId, position])
   @@map("test_cases")
 }
 
 model User {
-  id            String     @id
+  id            String       @id
   name          String
-  email         String     @unique
-  emailVerified Boolean    @default(false)
+  email         String       @unique
+  emailVerified Boolean      @default(false)
   image         String?
-  role          String     @default("user")
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  role          String       @default("user")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
   sessions      Session[]
   accounts      Account[]
   questions     Question[]
+  submissions   Submission[]
 
   @@map("user")
 }
@@ -97,4 +111,41 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+model Submission {
+  id          String                 @id @default(cuid())
+  userId      String                 @map("user_id")
+  questionId  Int                    @map("question_id")
+  sourceCode  String                 @map("source_code")
+  language    String                 @default("python")
+  status      SubmissionStatus       @default(PENDING)
+  runtimeMs   Float?                 @map("runtime_ms")
+  memoryKb    Int?                   @map("memory_kb")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  user        User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question    Question               @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  caseResults SubmissionCaseResult[]
+
+  @@index([userId, questionId, createdAt])
+  @@map("submissions")
+}
+
+model SubmissionCaseResult {
+  id             String           @id @default(cuid())
+  submissionId   String           @map("submission_id")
+  testCaseId     Int?             @map("test_case_id")
+  position       Int
+  isSample       Boolean          @map("is_sample")
+  stdin          String?
+  expectedOutput String?          @map("expected_output")
+  status         SubmissionStatus
+  runtimeMs      Float?           @map("runtime_ms")
+  memoryKb       Int?             @map("memory_kb")
+  actualOutput   String?          @map("actual_output")
+  submission     Submission       @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  testCase       TestCase?        @relation(fields: [testCaseId], references: [id], onDelete: SetNull)
+
+  @@unique([submissionId, position])
+  @@map("submission_case_results")
 }
