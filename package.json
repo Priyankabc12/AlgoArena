@@ -1,7 +1,7 @@
 {
   "name": "coding-practice-platform",
   "private": true,
-  "packageManager": "pnpm@11.12.0",
+  "packageManager": "pnpm@12.18.0",
   "scripts": {
     "dev": "pnpm --parallel --filter @practice/api --filter @practice/web dev",
     "build": "pnpm --filter @practice/api build && pnpm --filter @practice/web build",
