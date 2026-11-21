@@ -1,270 +1,159 @@
-export type Difficulty = "EASY" | "MEDIUM" | "HARD";
+import { z } from "zod";
 
-export type TestCaseInput = {
-  stdin?: string;
-  expectedOutput: string;
-  isSample: boolean;
-};
+export const difficultySchema = z.enum(["EASY", "MEDIUM", "HARD"], {
+  message: "Difficulty must be EASY, MEDIUM, or HARD."
+});
 
-export type QuestionInput = {
-  slug: string;
-  title: string;
-  statement: string;
-  difficulty: Difficulty;
-  tags: string[];
-  timeLimit: number;
-  memoryLimit: number;
-  testCases: TestCaseInput[];
-};
+export const questionTestCaseSchema = z.object({
+  stdin: z.string().optional().default(""),
+  expectedOutput: z.string({ message: "Expected output must be a string." }),
+  isSample: z.boolean({ message: "isSample must be a boolean." })
+});
 
-export type QuestionListQuery = {
-  search?: string;
-  difficulty?: Difficulty;
-  tag?: string;
-  page: number;
-  limit: number;
-};
-
-export type ValidationSuccess<T> = {
-  valid: true;
-  data: T;
-};
-
-export type ValidationFailure = {
-  valid: false;
-  error: string;
-  fields: Record<string, string>;
-};
-
-export type ValidationResult<T> = ValidationSuccess<T> | ValidationFailure;
-
-const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-export function validateQuestionInput(body: unknown): ValidationResult<QuestionInput> {
-  const fields: Record<string, string> = {};
-
-  if (typeof body !== "object" || body === null || Array.isArray(body)) {
-    return {
-      valid: false,
-      error: "Request body must be a JSON object.",
-      fields: { body: "Request body must be a JSON object." }
-    };
-  }
-
-  const record = body as Record<string, unknown>;
-
-  // Slug
-  if (typeof record.slug !== "string" || !SLUG_REGEX.test(record.slug)) {
-    fields.slug = "Slug must contain lowercase letters, numbers, and hyphens only.";
-  }
-
-  // Title
-  if (typeof record.title !== "string" || record.title.trim().length === 0) {
-    fields.title = "Title cannot be empty.";
-  }
-
-  // Statement
-  if (typeof record.statement !== "string" || record.statement.trim().length === 0) {
-    fields.statement = "Statement cannot be empty.";
-  }
-
-  // Difficulty
-  if (
-    typeof record.difficulty !== "string" ||
-    (record.difficulty !== "EASY" && record.difficulty !== "MEDIUM" && record.difficulty !== "HARD")
-  ) {
-    fields.difficulty = "Difficulty must be EASY, MEDIUM, or HARD.";
-  }
-
-  // Tags
-  let trimmedTags: string[] = [];
-  if (!Array.isArray(record.tags)) {
-    fields.tags = "Tags must be an array of strings.";
-  } else {
+export const tagsSchema = z
+  .array(
+    z.string().trim().min(1, "Tags must be trimmed, non-empty, case-insensitively unique strings."),
+    { message: "Tags must be an array of strings." }
+  )
+  .superRefine((tags, ctx) => {
     const seen = new Set<string>();
-    let validTags = true;
-    for (const tag of record.tags) {
-      if (typeof tag !== "string" || tag.trim().length === 0) {
-        validTags = false;
-        fields.tags = "Tags must be trimmed, non-empty, case-insensitively unique strings.";
-        break;
-      }
-      const trimmed = tag.trim();
-      const lower = trimmed.toLowerCase();
+    for (const tag of tags) {
+      const lower = tag.trim().toLowerCase();
       if (seen.has(lower)) {
-        validTags = false;
-        fields.tags = "Tags must be trimmed, non-empty, case-insensitively unique strings.";
-        break;
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Tags must be trimmed, non-empty, case-insensitively unique strings."
+        });
+        return;
       }
       seen.add(lower);
-      trimmedTags.push(trimmed);
     }
-  }
+  });
 
-  // Time Limit
-  if (
-    typeof record.timeLimit !== "number" ||
-    !Number.isFinite(record.timeLimit) ||
-    record.timeLimit <= 0
-  ) {
-    fields.timeLimit = "Time limit must be finite and greater than zero.";
-  }
-
-  // Memory Limit
-  if (
-    typeof record.memoryLimit !== "number" ||
-    !Number.isInteger(record.memoryLimit) ||
-    record.memoryLimit <= 0
-  ) {
-    fields.memoryLimit = "Memory limit must be a positive integer.";
-  }
-
-  // Test Cases
-  let validatedTestCases: TestCaseInput[] = [];
-  if (!Array.isArray(record.testCases) || record.testCases.length === 0) {
-    fields.testCases = "At least one sample and one hidden test case are required.";
-  } else {
-    let hasSample = false;
-    let hasHidden = false;
-    let validTestCases = true;
-
-    for (const tc of record.testCases) {
-      if (typeof tc !== "object" || tc === null || Array.isArray(tc)) {
-        validTestCases = false;
-        break;
-      }
-      const testCaseRecord = tc as Record<string, unknown>;
-
-      if (
-        testCaseRecord.stdin !== undefined &&
-        typeof testCaseRecord.stdin !== "string"
-      ) {
-        validTestCases = false;
-        break;
-      }
-
-      if (typeof testCaseRecord.expectedOutput !== "string") {
-        validTestCases = false;
-        break;
-      }
-
-      if (typeof testCaseRecord.isSample !== "boolean") {
-        validTestCases = false;
-        break;
-      }
-
-      if (testCaseRecord.isSample) {
-        hasSample = true;
-      } else {
-        hasHidden = true;
-      }
-
-      validatedTestCases.push({
-        stdin: typeof testCaseRecord.stdin === "string" ? testCaseRecord.stdin : "",
-        expectedOutput: testCaseRecord.expectedOutput,
-        isSample: testCaseRecord.isSample
+export const testCasesSchema = z
+  .array(questionTestCaseSchema, {
+    message: "At least one sample and one hidden test case are required."
+  })
+  .min(2, "At least one sample and one hidden test case are required.")
+  .superRefine((testCases, ctx) => {
+    const hasSample = testCases.some((tc) => tc.isSample === true);
+    const hasHidden = testCases.some((tc) => tc.isSample === false);
+    if (!hasSample || !hasHidden) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "At least one sample and one hidden test case are required."
       });
     }
+  });
 
-    if (!validTestCases || !hasSample || !hasHidden) {
-      fields.testCases = "At least one sample and one hidden test case are required.";
+export const questionInputSchema = z.object({
+  slug: z
+    .string({ message: "Slug must contain lowercase letters, numbers, and hyphens only." })
+    .regex(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+      "Slug must contain lowercase letters, numbers, and hyphens only."
+    ),
+  title: z
+    .string({ message: "Title cannot be empty." })
+    .trim()
+    .min(1, "Title cannot be empty."),
+  statement: z
+    .string({ message: "Statement cannot be empty." })
+    .trim()
+    .min(1, "Statement cannot be empty."),
+  difficulty: difficultySchema,
+  tags: tagsSchema,
+  timeLimit: z
+    .number({ message: "Time limit must be finite and greater than zero." })
+    .finite("Time limit must be finite and greater than zero.")
+    .positive("Time limit must be finite and greater than zero."),
+  memoryLimit: z
+    .number({ message: "Memory limit must be a positive integer." })
+    .int("Memory limit must be a positive integer.")
+    .positive("Memory limit must be a positive integer."),
+  testCases: testCasesSchema
+});
+
+const emptyStringToUndefined = (val: unknown) => {
+  if (typeof val === "string" && val.trim() === "") return undefined;
+  if (val === undefined || val === null) return undefined;
+  return val;
+};
+
+export const questionListQuerySchema = z.object({
+  page: z.preprocess(
+    (val) => (val === "" || val === undefined ? undefined : Number(val)),
+    z
+      .number({ message: "Page must be a positive integer." })
+      .int("Page must be a positive integer.")
+      .positive("Page must be a positive integer.")
+      .default(1)
+  ),
+  limit: z.preprocess(
+    (val) => (val === "" || val === undefined ? undefined : Number(val)),
+    z
+      .number({ message: "Limit must be an integer from 1 through 100." })
+      .int("Limit must be an integer from 1 through 100.")
+      .min(1, "Limit must be an integer from 1 through 100.")
+      .max(100, "Limit must be an integer from 1 through 100.")
+      .default(20)
+  ),
+  difficulty: z.preprocess(
+    emptyStringToUndefined,
+    difficultySchema.optional()
+  ),
+  tag: z.preprocess(
+    emptyStringToUndefined,
+    z.string().trim().optional()
+  ),
+  search: z.preprocess(
+    emptyStringToUndefined,
+    z.string().trim().optional()
+  )
+});
+
+export type Difficulty = z.infer<typeof difficultySchema>;
+export type TestCaseInput = z.infer<typeof questionTestCaseSchema>;
+export type QuestionInput = z.infer<typeof questionInputSchema>;
+export type QuestionListQuery = z.infer<typeof questionListQuerySchema>;
+
+export function formatZodFields(error: z.ZodError): Record<string, string> {
+  const fields: Record<string, string> = {};
+  for (const issue of error.issues) {
+    const key = issue.path.length > 0 ? String(issue.path[0]) : "body";
+    if (!fields[key]) {
+      fields[key] = issue.message;
     }
   }
+  return fields;
+}
 
-  if (Object.keys(fields).length > 0) {
+export function validateQuestionInput(body: unknown) {
+  const result = questionInputSchema.safeParse(body);
+  if (!result.success) {
     return {
-      valid: false,
+      valid: false as const,
       error: "Validation failed.",
-      fields
+      fields: formatZodFields(result.error)
     };
   }
-
   return {
-    valid: true,
-    data: {
-      slug: record.slug as string,
-      title: (record.title as string).trim(),
-      statement: (record.statement as string).trim(),
-      difficulty: record.difficulty as Difficulty,
-      tags: trimmedTags,
-      timeLimit: record.timeLimit as number,
-      memoryLimit: record.memoryLimit as number,
-      testCases: validatedTestCases
-    }
+    valid: true as const,
+    data: result.data
   };
 }
 
-export function validateQuestionListQuery(
-  query: Record<string, unknown>
-): ValidationResult<QuestionListQuery> {
-  const fields: Record<string, string> = {};
-
-  let page = 1;
-  if (query.page !== undefined && query.page !== "") {
-    const parsedPage = Number(query.page);
-    if (!Number.isInteger(parsedPage) || parsedPage < 1) {
-      fields.page = "Page must be a positive integer.";
-    } else {
-      page = parsedPage;
-    }
-  }
-
-  let limit = 20;
-  if (query.limit !== undefined && query.limit !== "") {
-    const parsedLimit = Number(query.limit);
-    if (!Number.isInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > 100) {
-      fields.limit = "Limit must be an integer from 1 through 100.";
-    } else {
-      limit = parsedLimit;
-    }
-  }
-
-  let difficulty: Difficulty | undefined;
-  if (query.difficulty !== undefined && query.difficulty !== "") {
-    if (
-      typeof query.difficulty !== "string" ||
-      (query.difficulty !== "EASY" && query.difficulty !== "MEDIUM" && query.difficulty !== "HARD")
-    ) {
-      fields.difficulty = "Difficulty must be EASY, MEDIUM, or HARD.";
-    } else {
-      difficulty = query.difficulty;
-    }
-  }
-
-  let tag: string | undefined;
-  if (query.tag !== undefined && query.tag !== "") {
-    if (typeof query.tag !== "string") {
-      fields.tag = "Tag must be a string.";
-    } else {
-      tag = query.tag.trim();
-    }
-  }
-
-  let search: string | undefined;
-  if (query.search !== undefined && query.search !== "") {
-    if (typeof query.search !== "string") {
-      fields.search = "Search must be a string.";
-    } else {
-      search = query.search.trim();
-    }
-  }
-
-  if (Object.keys(fields).length > 0) {
+export function validateQuestionListQuery(query: unknown) {
+  const result = questionListQuerySchema.safeParse(query);
+  if (!result.success) {
     return {
-      valid: false,
+      valid: false as const,
       error: "Invalid query parameters.",
-      fields
+      fields: formatZodFields(result.error)
     };
   }
-
   return {
-    valid: true,
-    data: {
-      page,
-      limit,
-      difficulty,
-      tag,
-      search
-    }
+    valid: true as const,
+    data: result.data
   };
 }

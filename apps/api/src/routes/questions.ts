@@ -1,5 +1,5 @@
 import { fromNodeHeaders } from "better-auth/node";
-import express, { type NextFunction, type Request, type Response, Router } from "express";
+import { type NextFunction, type Request, type Response, Router } from "express";
 import { auth } from "../auth.js";
 import {
   createQuestion,
@@ -11,8 +11,9 @@ import {
   updateQuestion
 } from "../services/questions.js";
 import {
-  validateQuestionInput,
-  validateQuestionListQuery
+  formatZodFields,
+  questionInputSchema,
+  questionListQuerySchema
 } from "../validation/questions.js";
 
 type AuthenticatedRequest = Request & {
@@ -59,22 +60,21 @@ function getSlugParam(param: string | string[] | undefined): string {
 }
 
 export const questionsRouter = Router();
-questionsRouter.use(express.json());
 
 // Public: GET /questions
 questionsRouter.get("/questions", async (req: Request, res: Response) => {
-  const validation = validateQuestionListQuery(req.query as Record<string, unknown>);
+  const parsed = questionListQuerySchema.safeParse(req.query);
 
-  if (!validation.valid) {
+  if (!parsed.success) {
     res.status(400).json({
-      error: validation.error,
-      fields: validation.fields
+      error: "Invalid query parameters.",
+      fields: formatZodFields(parsed.error)
     });
     return;
   }
 
   try {
-    const result = await listQuestions(validation.data);
+    const result = await listQuestions(parsed.data);
     res.json(result);
   } catch {
     res.status(500).json({ error: "Failed to list questions." });
@@ -121,18 +121,18 @@ questionsRouter.post(
   requireAdmin,
   async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
-    const validation = validateQuestionInput(req.body);
+    const parsed = questionInputSchema.safeParse(req.body);
 
-    if (!validation.valid) {
+    if (!parsed.success) {
       res.status(400).json({
-        error: validation.error,
-        fields: validation.fields
+        error: "Validation failed.",
+        fields: formatZodFields(parsed.error)
       });
       return;
     }
 
     try {
-      const created = await createQuestion(validation.data, authReq.user.id);
+      const created = await createQuestion(parsed.data, authReq.user.id);
       res.status(201).json(created);
     } catch (error) {
       if (error instanceof SlugConflictError) {
@@ -163,18 +163,18 @@ questionsRouter.patch(
       return;
     }
 
-    const validation = validateQuestionInput(req.body);
+    const parsed = questionInputSchema.safeParse(req.body);
 
-    if (!validation.valid) {
+    if (!parsed.success) {
       res.status(400).json({
-        error: validation.error,
-        fields: validation.fields
+        error: "Validation failed.",
+        fields: formatZodFields(parsed.error)
       });
       return;
     }
 
     try {
-      const updated = await updateQuestion(originalSlug, validation.data);
+      const updated = await updateQuestion(originalSlug, parsed.data);
       res.status(200).json(updated);
     } catch (error) {
       if (error instanceof QuestionNotFoundError) {

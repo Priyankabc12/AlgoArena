@@ -10,6 +10,7 @@ import { questionsRouter } from "./questions.js";
 const webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
 
 const testApp = express();
+testApp.use(express.json());
 testApp.all("/api/auth/*splat", toNodeHandler(auth));
 testApp.use("/api", questionsRouter);
 
@@ -20,6 +21,22 @@ const testSuiteId = randomUUID().slice(0, 8);
 const testPrefix = `test-${testSuiteId}`;
 
 async function cleanupTestData() {
+  await prisma.submissionCaseResult.deleteMany({
+    where: {
+      submission: {
+        question: {
+          slug: { startsWith: testPrefix }
+        }
+      }
+    }
+  });
+  await prisma.submission.deleteMany({
+    where: {
+      question: {
+        slug: { startsWith: testPrefix }
+      }
+    }
+  });
   await prisma.testCase.deleteMany({
     where: {
       question: {
@@ -877,4 +894,99 @@ test("17. No delete route exists", async () => {
     method: "DELETE"
   });
   assert.equal(delRoot.status, 404);
+});
+
+test("18. Admin edit preserves submission history when replacing test cases", async () => {
+  const admin = await createTestUser("admin");
+  const student = await createTestUser("user");
+  const slug = `${testPrefix}-edit-preserve-submissions`;
+
+  const question = await prisma.question.create({
+    data: {
+      slug,
+      title: "Submission Question",
+      statement: "Statement before edit",
+      difficulty: "EASY",
+      tags: ["History"],
+      timeLimit: 2,
+      memoryLimit: 128000,
+      createdById: admin.userId,
+      testCases: {
+        create: [
+          { stdin: "sample_in\n", expectedOutput: "sample_out\n", isSample: true, position: 0 },
+          { stdin: "hidden_in\n", expectedOutput: "hidden_out\n", isSample: false, position: 1 }
+        ]
+      }
+    },
+    include: { testCases: { orderBy: { position: "asc" } } }
+  });
+
+  const originalTestCase = question.testCases[1]!;
+
+  const submission = await prisma.submission.create({
+    data: {
+      userId: student.userId,
+      questionId: question.id,
+      sourceCode: "print('hidden_out')",
+      language: "python",
+      status: "ACCEPTED",
+      runtimeMs: 45.5,
+      memoryKb: 1024,
+      caseResults: {
+        create: [
+          {
+            testCaseId: originalTestCase.id,
+            position: 0,
+            isSample: false,
+            stdin: originalTestCase.stdin,
+            expectedOutput: originalTestCase.expectedOutput,
+            actualOutput: "hidden_out\n",
+            status: "ACCEPTED",
+            runtimeMs: 45.5,
+            memoryKb: 1024
+          }
+        ]
+      }
+    },
+    include: { caseResults: true }
+  });
+
+  assert.equal(submission.caseResults[0]?.testCaseId, originalTestCase.id);
+
+  // Edit the question, replacing test cases
+  const updatedBody = {
+    slug,
+    title: "Submission Question Updated",
+    statement: "Statement after edit",
+    difficulty: "MEDIUM",
+    tags: ["History", "Updated"],
+    timeLimit: 3,
+    memoryLimit: 256000,
+    testCases: [
+      { stdin: "new_sample_in\n", expectedOutput: "new_sample_out\n", isSample: true },
+      { stdin: "new_hidden_in\n", expectedOutput: "new_hidden_out\n", isSample: false }
+    ]
+  };
+
+  const patchRes = await fetch(`${baseUrl}/api/admin/questions/${slug}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Cookie: admin.cookie, Origin: webOrigin },
+    body: JSON.stringify(updatedBody)
+  });
+  assert.equal(patchRes.status, 200);
+
+  // Submissions and case results must still exist
+  const dbSubmission = await prisma.submission.findUnique({
+    where: { id: submission.id },
+    include: { caseResults: true }
+  });
+  assert.ok(dbSubmission, "Submission must still exist");
+  assert.equal(dbSubmission.caseResults.length, 1, "Submission case results must still exist");
+
+  const caseResult = dbSubmission.caseResults[0]!;
+  assert.equal(caseResult.testCaseId, null, "Deleted testCaseId must become null");
+  assert.equal(caseResult.stdin, "hidden_in\n", "Snapshot stdin must be preserved");
+  assert.equal(caseResult.expectedOutput, "hidden_out\n", "Snapshot expected output must be preserved");
+  assert.equal(caseResult.actualOutput, "hidden_out\n", "Snapshot actual output must be preserved");
+  assert.equal(caseResult.status, "ACCEPTED");
 });
