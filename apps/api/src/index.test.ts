@@ -133,3 +133,16 @@ test("email auth protects execution and tracks the admin who creates a question"
     await server.close();
   }
 });
+
+test("GET /api/questions is routed by the application and does not return 404", async () => {
+  const server = await startServer();
+  try {
+    const response = await fetch(`${server.baseUrl}/api/questions`);
+    assert.notEqual(response.status, 404);
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as { items: unknown[]; total: number };
+    assert.ok(Array.isArray(body.items));
+  } finally {
+    await server.close();
+  }
+});

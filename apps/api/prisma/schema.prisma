@@ -25,6 +25,8 @@ model Question {
   statement   String
   timeLimit   Float        @default(2) @map("time_limit")
   memoryLimit Int          @default(128000) @map("memory_limit")
+  difficulty  String       @default("EASY")
+  tags        String[]     @default([])
   createdById String       @map("created_by_id")
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
