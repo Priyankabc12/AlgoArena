@@ -13,9 +13,13 @@ const judge0Url = process.env.JUDGE0_URL ?? "http://localhost:2358";
 const webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
 
 app.use(cors({ origin: webOrigin, credentials: true }));
-app.all("/api/auth/*splat", toNodeHandler(auth));
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+
+app.all("/api/auth/*splat", toNodeHandler(auth));
+
 app.use("/api", executionsRouter);
+
 app.use("/api", questionsRouter);
 
 app.get("/health", (_request, response) => {
