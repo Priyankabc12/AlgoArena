@@ -1,95 +1,89 @@
 "use client";
 
-import { FormEvent, useState } from "react";
 import Link from "next/link";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { authClient } from "./auth-client";
+import { AuthCard } from "./auth-card";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export default function Home() {
-  const { data: session, isPending: isSessionPending } = authClient.useSession();
-  const [authMode, setAuthMode] = useState<"sign-in" | "sign-up">("sign-in");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [authError, setAuthError] = useState("");
+  const { data: session, isPending, refetch } = authClient.useSession();
   const [sourceCode, setSourceCode] = useState('print("Hello, world!")');
   const [languageId, setLanguageId] = useState(71);
   const [stdin, setStdin] = useState("");
-  const [result, setResult] = useState("Run some code to see its result.");
+  const [result, setResult] = useState("Run your first program to see the output here.");
   const [isRunning, setIsRunning] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState<"sign-in" | "sign-up">("sign-in");
+  const modalRef = useRef<HTMLDivElement>(null);
 
-  async function authenticate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setAuthError("");
+  useEffect(() => {
+    if (!showAuth) return;
+    const modal = modalRef.current;
+    const focusable = () =>
+      Array.from(
+        modal?.querySelectorAll<HTMLElement>(
+          "a[href], button:not(:disabled), input:not(:disabled)"
+        ) ?? []
+      );
 
-    const response = authMode === "sign-up"
-      ? await authClient.signUp.email({ name, email, password })
-      : await authClient.signIn.email({ email, password });
+    focusable()[0]?.focus();
 
-    if (response.error) setAuthError(response.error.message ?? "Authentication failed.");
-    else {
-      setPassword("");
-      const returnTo = new URLSearchParams(window.location.search).get("returnTo");
-      if (returnTo?.startsWith("/") && !returnTo.startsWith("//")) {
-        window.location.assign(returnTo);
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setShowAuth(false);
+      if (event.key !== "Tab") return;
+
+      const items = focusable();
+      if (!items.length) return;
+
+      const first = items[0];
+      const last = items[items.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     }
-  }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [showAuth]);
 
   async function run(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isRunning || !session) return;
     setIsRunning(true);
-
     try {
       const response = await fetch(`${apiUrl}/execute`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source_code: sourceCode, language_id: languageId, stdin })
       });
-      setResult(JSON.stringify(await response.json(), null, 2));
+      const data = await response.json();
+      setResult(response.ok ? JSON.stringify(data, null, 2) : data.error ?? "Execution failed.");
     } catch {
       setResult("The API is unavailable. Start the API and Judge0, then try again.");
-    } finally {
-      setIsRunning(false);
-    }
+    } finally { setIsRunning(false); }
   }
 
-  return (
-    <main>
-      <h1>Coding Practice</h1>
-      {isSessionPending ? <p>Checking your session…</p> : session ? (
-        <section className="auth-panel">
-          <p>Signed in as <strong>{session.user.name}</strong> ({session.user.email})</p>
-          <Link href="/profile">Profile</Link>
-          <button type="button" onClick={() => authClient.signOut()}>Sign out</button>
-        </section>
-      ) : (
-        <section className="auth-panel">
-          <h2>{authMode === "sign-in" ? "Sign in" : "Create account"}</h2>
-          <form onSubmit={authenticate}>
-            {authMode === "sign-up" && <label>Name<input required value={name} onChange={(event) => setName(event.target.value)} /></label>}
-            <label>Email<input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-            <label>Password<input required type="password" minLength={8} autoComplete={authMode === "sign-up" ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} /></label>
-            {authError && <p className="error" role="alert">{authError}</p>}
-            <button>{authMode === "sign-in" ? "Sign in" : "Sign up"}</button>
-          </form>
-          <button className="link-button" type="button" onClick={() => { setAuthMode(authMode === "sign-in" ? "sign-up" : "sign-in"); setAuthError(""); }}>
-            {authMode === "sign-in" ? "Need an account? Sign up" : "Already registered? Sign in"}
-          </button>
-        </section>
-      )}
+return <main className="rx-shell">
 
-      <h2>Run code</h2>
-      {!session && !isSessionPending && <p>Sign in to execute code.</p>}
-      <form onSubmit={run}>
-        <label>Judge0 language ID<input type="number" value={languageId} onChange={(event) => setLanguageId(Number(event.target.value))} /></label>
-        <label>Source code<textarea value={sourceCode} onChange={(event) => setSourceCode(event.target.value)} rows={12} /></label>
-        <label>Standard input<textarea value={stdin} onChange={(event) => setStdin(event.target.value)} rows={4} /></label>
-        <button disabled={isRunning || !session}>{isRunning ? "Running…" : "Run"}</button>
-      </form>
-      <pre>{result}</pre>
-    </main>
-  );
+    <section className="rx-hero"><div className="rx-orbit rx-orbit-one"/><div className="rx-orbit rx-orbit-two"/><span className="rx-eyebrow">THE SPACE TO THINK IN CODE</span><h1>Make your next<br/><em>breakthrough.</em></h1><p>Sharpen your problem-solving instincts in a focused arena built for curious minds and ambitious builders.</p><div className="rx-hero-actions"><a className="rx-btn rx-btn-primary" href="#practice">Start practicing <span>↗</span></a><a className="rx-btn rx-btn-secondary" href="#problems">Explore problems</a></div>
+      <div className="rx-preview rx-glass"><div className="rx-preview-top"><span><i/> LIVE WORKSPACE</span><span>PYTHON 3.11</span></div><div className="rx-preview-body"><div className="rx-preview-line"><b>01</b><code><i>def</i> solve<span>(</span>nums<span>):</span></code></div><div className="rx-preview-line"><b>02</b><code>&nbsp;&nbsp;<i>return</i> max<span>(</span>nums<span>)</span></code></div><div className="rx-preview-line"><b>03</b><code/></div><div className="rx-preview-status"><span>✓ All systems ready</span><strong>● 1,284 tests passed</strong></div></div></div>
+      <div className="rx-float rx-float-a"><span>ACCEPTANCE</span><strong>98.6%</strong><small>↑ 4.2% this week</small></div><div className="rx-float rx-float-b"><span>STREAK</span><strong>07 <small>DAYS</small></strong></div>
+    </section>
+
+    <section className="rx-stats" id="problems"><div><span>01 / PRACTICE</span><strong>Curated challenges</strong></div><div><span>02 / MOMENTUM</span><strong>Visible progress</strong></div><div><span>03 / COMMUNITY</span><strong>Better together</strong></div></section>
+
+    <section className="rx-workspace" id="practice"><header className="rx-section-heading"><div><span className="rx-eyebrow">YOUR WORKSPACE</span><h2>Think clearly.<br/><em>Ship confidently.</em></h2></div><span className="rx-muted">A quiet place to get into the flow.</span></header>
+      {!session && <div className="rx-auth-gate"><AuthCard/><p className="rx-muted">{isPending ? "Checking your session…" : "Sign in to run code and keep your progress."}</p></div>}
+      {session && <div className="rx-editor-layout"><article className="rx-problem rx-glass"><span className="rx-tag">ARRAYS · EASY</span><h3>Find the strongest signal</h3><p>Given a list of integers, return the largest value. The list contains at least one number.</p><div className="rx-example"><span>EXAMPLE</span><code>Input&nbsp; nums = [3, 8, 2, 5]<br/>Output&nbsp; 8</code></div><p className="rx-muted">Time limit: 2 seconds &nbsp;·&nbsp; Memory: 128 MB</p></article>
+        <form className="rx-code-card rx-glass" onSubmit={run}><div className="rx-editor-toolbar"><label>LANGUAGE <select value={languageId} onChange={event => setLanguageId(Number(event.target.value))}><option value={71}>Python 3</option><option value={63}>JavaScript</option><option value={54}>C++</option></select></label><button className="rx-btn rx-btn-primary rx-run" disabled={isRunning}>{isRunning ? "Running…" : "Run code"}<span>▶</span></button></div><label className="rx-editor-label" htmlFor="rx-code">SOURCE CODE</label><textarea id="rx-code" spellCheck={false} className="rx-code-input" value={sourceCode} onChange={event => setSourceCode(event.target.value)}/><label className="rx-editor-label" htmlFor="rx-stdin">STANDARD INPUT</label><textarea id="rx-stdin" className="rx-stdin" value={stdin} onChange={event => setStdin(event.target.value)} placeholder="Optional input…"/><div className="rx-console"><div><span>OUTPUT CONSOLE</span><i>● READY</i></div><pre>{result}</pre></div></form></div>}
+    </section>
+    {showAuth && <div className="rx-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setShowAuth(false); }}><div className="rx-modal" ref={modalRef} role="dialog" aria-modal="true" aria-label={authMode === "sign-in" ? "Sign in to Algo Arena" : "Create an Algo Arena account"}><button className="rx-modal-close" onClick={() => setShowAuth(false)} aria-label="Close sign in">×</button><AuthCard initialMode={authMode}/></div></div>}
+    <footer className="rx-footer"><Link className="rx-brand" href="/">ALGO<span>ARENA</span><b>®</b></Link><span>Made for the joy of solving.</span><span>© 2026 Algo Arena</span></footer>
+  </main>;
 }
