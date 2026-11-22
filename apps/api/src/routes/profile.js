@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { fromNodeHeaders } from "better-auth/node";
 import { Router } from "express";
 import { auth } from "../auth.js";
@@ -46,6 +47,50 @@ profileRouter.get("/profile", async (_request, response) => {
     response.json(user);
   } catch {
     response.status(500).json({ error: "Could not load your profile." });
+  }
+});
+
+profileRouter.patch("/profile", async (request, response) => {
+  response.setHeader("Cache-Control", "private, no-store");
+
+  if (!request.is("application/json")) {
+    response.status(400).json({ error: "Send the update as application/json." });
+    return;
+  }
+
+  const trustedOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
+  if (request.get("Origin") !== trustedOrigin) {
+    response.status(403).json({ error: "Requests must come from the trusted web origin." });
+    return;
+  }
+
+  const body = request.body;
+  if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length !== 1 || !Object.hasOwn(body, "name")) {
+    response.status(400).json({ error: "Provide only a name field." });
+    return;
+  }
+
+  if (typeof body.name !== "string") {
+    response.status(400).json({ error: "Name must be a string between 1 and 50 characters." });
+    return;
+  }
+
+  const name = body.name.trim();
+  if (name.length < 1 || name.length > 50) {
+    response.status(400).json({ error: "Name must be between 1 and 50 characters." });
+    return;
+  }
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: response.locals.userId },
+      data: { name },
+      select: { name: true }
+    });
+
+    response.json(user);
+  } catch {
+    response.status(500).json({ error: "Could not update your profile." });
   }
 });
 
