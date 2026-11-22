@@ -9,7 +9,7 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![Judge0](https://img.shields.io/badge/Judge0-1.13.1-6D28D9?style=flat-square)
 
-[Local setup](#local-setup) · [Try it out](#try-it-out) · [API](#api) · [Development](#development)
+[Local setup](#local-setup) · [Local database](#local-database) · [Try it out](#try-it-out) · [API](#api) · [Development](#development)
 
 </div>
 
@@ -51,6 +51,29 @@ pnpm dev
 | Express API | [localhost:4000/health](http://localhost:4000/health) |
 | Judge0 | `http://localhost:2358` |
 | Application PostgreSQL | `localhost:5434` |
+
+### Local database
+
+From the repository root, start PostgreSQL and apply the migrations if you haven’t already.
+
+```sh
+pnpm db:up
+pnpm --filter @practice/api prisma:migrate
+```
+
+Load the sample accounts, questions, and submissions.
+
+```sh
+pnpm db:seed
+```
+
+Open Prisma Studio to browse the database configured in `apps/api/.env`.
+
+```sh
+pnpm db:studio
+```
+
+Studio opens in your browser. If it doesn’t open automatically, use the URL printed in the terminal. Look in the `user`, `questions`, and `submissions` tables for the seeded records. See the [API README](apps/api/README.md#seed-profile-test-data) for the sample login details.
 
 ## Try it out
 

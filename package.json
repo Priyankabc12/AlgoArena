@@ -8,6 +8,8 @@
     "typecheck": "pnpm --filter @practice/api typecheck && pnpm --filter @practice/web typecheck",
     "db:up": "docker compose -f infra/app-db/docker-compose.yml up -d",
     "db:down": "docker compose -f infra/app-db/docker-compose.yml down",
+    "db:seed": "pnpm --filter @practice/api exec tsx src/seed.ts",
+    "db:studio": "pnpm --filter @practice/api exec prisma studio",
     "judge0:up": "docker compose -f infra/judge0-v1.13.1/docker-compose.yml up -d",
     "judge0:down": "docker compose -f infra/judge0-v1.13.1/docker-compose.yml down"
   }
