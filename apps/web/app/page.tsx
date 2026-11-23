@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { authClient } from "./auth-client";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -27,7 +28,13 @@ export default function Home() {
       : await authClient.signIn.email({ email, password });
 
     if (response.error) setAuthError(response.error.message ?? "Authentication failed.");
-    else setPassword("");
+    else {
+      setPassword("");
+      const returnTo = new URLSearchParams(window.location.search).get("returnTo");
+      if (returnTo?.startsWith("/") && !returnTo.startsWith("//")) {
+        window.location.assign(returnTo);
+      }
+    }
   }
 
   async function run(event: FormEvent<HTMLFormElement>) {
@@ -55,6 +62,7 @@ export default function Home() {
       {isSessionPending ? <p>Checking your session…</p> : session ? (
         <section className="auth-panel">
           <p>Signed in as <strong>{session.user.name}</strong> ({session.user.email})</p>
+          <Link href="/profile">Profile</Link>
           <button type="button" onClick={() => authClient.signOut()}>Sign out</button>
         </section>
       ) : (

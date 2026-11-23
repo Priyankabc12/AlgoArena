@@ -4,6 +4,7 @@ import express from "express";
 import { auth } from "./auth.js";
 import { executionsRouter } from "./executions.js";
 import { questionsRouter } from "./routes/questions.js";
+import { profileRouter } from "./routes/profile.js";
 import { prisma } from "./prisma.js";
 import { legacyExecutionSchema, questionInputSchema } from "./validation.js";
 
@@ -17,6 +18,7 @@ app.all("/api/auth/*splat", toNodeHandler(auth));
 app.use(express.json());
 app.use("/api", executionsRouter);
 app.use("/api", questionsRouter);
+app.use("/api", profileRouter);
 
 app.get("/health", (_request, response) => {
   response.json({ status: "ok" });
