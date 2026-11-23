@@ -2,9 +2,11 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { authClient } from "./auth-client";
 
-export function AuthCard({ initialMode = "sign-in" }: { initialMode?: "sign-in" | "sign-up" }) {
+export function AuthCard({ initialMode = "sign-in", redirectTo = "/questions", onAuthenticated }: { initialMode?: "sign-in" | "sign-up"; redirectTo?: string; onAuthenticated?: () => void }) {
+  const router = useRouter();
   const { refetch } = authClient.useSession();
   const [mode, setMode] = useState(initialMode);
   const [name, setName] = useState("");
@@ -30,6 +32,8 @@ export function AuthCard({ initialMode = "sign-in" }: { initialMode?: "sign-in" 
         setPassword("");
         await refetch();
         setSuccess(mode === "sign-in" ? "You’re signed in. Your session is ready." : "Your account is ready. You’re signed in.");
+        if (onAuthenticated) onAuthenticated();
+        else router.replace(redirectTo);
       }
     } catch {
       setError("The authentication service could not be reached. Please try again.");
@@ -44,7 +48,11 @@ export function AuthCard({ initialMode = "sign-in" }: { initialMode?: "sign-in" 
     try {
       const result = await authClient.signIn.popup({ provider: "google" });
       if (result.error) setError(result.error.message);
-      else await refetch();
+      else {
+        await refetch();
+        if (onAuthenticated) onAuthenticated();
+        else router.replace(redirectTo);
+      }
     } catch {
       setError("Google sign-in did not finish. Check your popup settings and try again.");
     } finally {

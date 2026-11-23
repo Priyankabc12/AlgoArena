@@ -9,23 +9,22 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![Judge0](https://img.shields.io/badge/Judge0-1.13.1-6D28D9?style=flat-square)
 
-[Local setup](#local-setup) · [Local database](#local-database) · [Try it out](#try-it-out) · [API](#api) · [Development](#development)
+[Local setup](#local-setup) · [Local database](#local-database) · [Try it out](#try-it-out) · [Google sign-in](#google-sign-in-optional) · [API](#api) · [Development](#development)
 
 </div>
 
 ## What you can do
 
-- **Browse problems** by title, difficulty, or topic, and open a Python workspace with a Monaco editor and sample cases.
-- **Run code with custom input** from the home page. Sign in with email and password, choose a Judge0 language ID, and inspect the execution result.
-- **Judge Python solutions through the API.** Run sample cases for quick feedback, submit against all cases, and retrieve your saved submissions. The API redacts hidden case inputs and outputs.
-- **Manage questions through the admin API.** Set difficulty, tags, time and memory limits, and sample and hidden test cases.
+- Browse the database-backed problem catalog by title, difficulty, or topic. The catalog includes pagination and marks problems you have solved.
+- Open a problem in the split editor workspace, read its statement and examples, and write Python in Monaco.
+- Run against sample cases or submit against all cases. Submissions are saved to your account; hidden test inputs and outputs are not returned to the browser.
+- Create and update questions through the admin API, with difficulty, tags, time and memory limits, and sample and hidden test cases.
 
-> [!NOTE]
-> The browser catalog uses bundled examples, and its **Run** and **Submit** buttons display demo results. Use the execution API to judge solutions against questions stored in PostgreSQL.
+The home page is a landing page. **Start practicing**, **Problems**, and **Practice** open `/questions`. Sign-in and account creation take you to the catalog after success. Selecting a problem opens `/questions/:slug`. The Contests link opens `/contests`; it currently explains that no contests are scheduled and links back to the problem list.
 
 ## Local setup
 
-You’ll need Node.js 22.12 or newer on the 22.x line, pnpm 12.18.0, Docker with Compose, and OpenSSL.
+Requirements: Node.js 22.12 or newer on the 22.x line, pnpm 12.18.0, Docker with Compose, and OpenSSL.
 
 ```sh
 git clone https://github.com/Priyankabc12/AlgoArena.git
@@ -36,19 +35,24 @@ cp apps/web/.env.local.example apps/web/.env.local
 openssl rand -base64 32
 ```
 
-Set `BETTER_AUTH_SECRET` in `apps/api/.env` to the generated value, then start the services.
+Put the generated value in `BETTER_AUTH_SECRET` in `apps/api/.env`. Start PostgreSQL, apply migrations, seed the six curated starter problems, then start Judge0 and the app:
 
 ```sh
 pnpm db:up
 pnpm --filter @practice/api prisma:migrate
+pnpm --filter @practice/api seed:questions
 pnpm judge0:up
 pnpm dev
 ```
 
+Seeding is safe to run more than once. It adds missing starter questions and leaves existing questions with the same slugs unchanged. The catalog can also display questions created through the admin API.
+
+**Judge0 troubleshooting:** the Judge0 1.13.1 image can start successfully while its sandbox still fails to execute code on hosts that provide only cgroups v2. If Run or Submit returns an internal runner error such as `/box/script.py`, use a Linux Docker host configured with cgroups v1 or point `JUDGE0_URL` in `apps/api/.env` at a compatible Judge0 service. The runner must be healthy before submissions can execute.
+
 | Service | Local address |
 | --- | --- |
-| Web app | [localhost:3000](http://localhost:3000) |
-| Express API | [localhost:4000/health](http://localhost:4000/health) |
+| Web app | [http://localhost:3000](http://localhost:3000) |
+| Express API health | [http://localhost:4000/health](http://localhost:4000/health) |
 | Judge0 | `http://localhost:2358` |
 | Application PostgreSQL | `localhost:5434` |
 
@@ -77,34 +81,65 @@ Studio opens in your browser. If it doesn’t open automatically, use the URL pr
 
 ## Try it out
 
-1. Open the [home page](http://localhost:3000), create an account, and click **Run** with the default Python code to execute it through Judge0.
-2. Visit the [question catalog](http://localhost:3000/questions) and open **Sum of Two Numbers** to explore the editor and sample cases.
-3. To judge a submission through the API, promote your local account, sign in again, and create a database-backed question through `POST /api/admin/questions`. Include at least one sample and one hidden case. Send the question’s slug and your Python source as `questionSlug` and `sourceCode` to the run or submit endpoint.
+1. Open [http://localhost:3000](http://localhost:3000), choose **Get started**, and create an account. On success, AlgoArena opens the question catalog.
+2. Open **Sum of Two Numbers** from the list. The workspace shows the statement and sample inputs beside the Python editor.
+3. Try this solution, click **Run** to check the sample cases, then click **Submit** to run all cases:
 
-```sh
-pnpm --filter @practice/api admin:promote -- admin@example.com
-```
+   ```python
+   import sys
 
-Use the email you signed up with. Protected endpoints use the Better Auth session cookie.
+   numbers = list(map(int, sys.stdin.read().split()))
+   print(sum(numbers))
+   ```
+
+4. To manage your own questions, promote your account to admin and use the admin endpoints below. Provide at least one sample and one hidden test case for each question.
+
+   ```sh
+   pnpm --filter @practice/api admin:promote -- admin@example.com
+   ```
+
+   Replace `admin@example.com` with the email you used to sign up. Sign out and back in after promotion so the new role is present in your session.
+
+## Google sign-in (optional)
+
+Google credentials are issued by Google Cloud; they cannot be generated by this repo. To create them:
+
+1. Open [Google Cloud Console](https://console.cloud.google.com/), select or create a project, then open **Google Auth Platform → Branding** and enter the app name and contact email.
+2. Under **Audience**, choose the appropriate audience. While testing, add your Google account as a test user.
+3. Open **Google Auth Platform → Clients → Create client**. Choose **Web application**.
+4. Add `http://localhost:3000` as an **Authorized JavaScript origin**.
+5. Add this exact **Authorized redirect URI**: `http://localhost:4000/api/auth/callback/google`.
+6. Create the client and copy its **Client ID** and **Client secret** from the Google confirmation dialog. The Client ID is not the secret. Keep the secret private; Google may only display it at creation time.
+7. In `apps/api/.env`, set:
+
+   ```dotenv
+   GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=your-google-client-secret
+   GOOGLE_CALLBACK_URL=http://localhost:4000/api/auth/callback/google
+   ```
+
+   In `apps/web/.env.local`, set `NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED=true`, then restart both app services. Never put the secret in a `NEXT_PUBLIC_` variable or commit it. The callback URI in Google Console must exactly match `GOOGLE_CALLBACK_URL` (scheme, host, port, and path).
+
+AlgoArena already uses Better Auth for email/password and Google sign-in, with Prisma-backed sessions. The Google button uses Better Auth’s popup plugin; this setup does not use Passport or a second session system. For Google’s current instructions, see its [OAuth web-server guide](https://developers.google.com/identity/protocols/oauth2/web-server) and [credential setup guide](https://developers.google.com/workspace/guides/create-credentials).
 
 ## API
 
 | Endpoint | What it does | Access |
 | --- | --- | --- |
-| `GET /api/questions` | Search and filter database-backed questions | Public |
-| `GET /api/questions/:slug` | Read a question and its sample cases | Public |
-| `POST /api/executions/run` | Judge Python against sample cases | Signed in |
-| `POST /api/executions/submit` | Judge Python against all cases and save the result | Signed in |
+| `GET /api/questions` | Search, filter, and paginate questions | Public |
+| `GET /api/questions/:slug` | Read a problem and its sample cases | Public |
+| `POST /api/executions/run` | Run code against sample cases | Signed in |
+| `POST /api/executions/submit` | Run code against all cases and save the submission | Signed in |
 | `GET /api/submissions` · `GET /api/submissions/:id` | Read your submission history and results | Signed in |
 | `POST /api/admin/questions` · `PATCH /api/admin/questions/:slug` | Create and update questions | Admin |
 
-See the [API README](apps/api/README.md) for authentication and the standalone code runner. The [question schema](apps/api/src/validation/questions.ts) defines the admin request fields.
+Requests use the Better Auth session cookie. See [apps/api/README.md](apps/api/README.md) for auth details and [the question schema](apps/api/src/validation/questions.ts) for admin request fields.
 
 ## Development
 
 | Directory | Responsibility |
 | --- | --- |
-| [`apps/web`](apps/web) | Next.js client, Monaco editor, and Better Auth client |
+| [`apps/web`](apps/web) | Next.js pages, question catalog/workspace, Monaco editor, and auth client |
 | [`apps/api`](apps/api) | Express API, Better Auth, Prisma, and Judge0 integration |
 | [`infra/app-db`](infra/app-db) | PostgreSQL for accounts, questions, and submissions |
 | [`infra/judge0-v1.13.1`](infra/judge0-v1.13.1) | Judge0 server and workers with their own PostgreSQL and Redis |
@@ -115,4 +150,5 @@ pnpm --filter @practice/api test
 pnpm build
 ```
 
-Stop the local services with `pnpm judge0:down` and `pnpm db:down`.
+Stop local services with `pnpm judge0:down` and `pnpm db:down`.
+

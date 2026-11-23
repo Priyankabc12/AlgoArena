@@ -1,19 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { authClient } from "./auth-client";
 import { AuthCard } from "./auth-card";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-
 export default function Home() {
-  const { data: session, isPending, refetch } = authClient.useSession();
-  const [sourceCode, setSourceCode] = useState('print("Hello, world!")');
-  const [languageId, setLanguageId] = useState(71);
-  const [stdin, setStdin] = useState("");
-  const [result, setResult] = useState("Run your first program to see the output here.");
-  const [isRunning, setIsRunning] = useState(false);
+  const { data: session, refetch } = authClient.useSession();
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState<"sign-in" | "sign-up">("sign-in");
   const modalRef = useRef<HTMLDivElement>(null);
@@ -53,6 +46,7 @@ export default function Home() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [showAuth]);
 
+<<<<<<< HEAD
   async function run(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isRunning || !session) return;
@@ -70,19 +64,20 @@ export default function Home() {
   }
 
 return <main className="rx-shell">
+=======
+  return <main className="rx-shell">
+    <nav className="rx-nav"><Link className="rx-brand" href="/">ALGO<span>ARENA</span><b>®</b></Link><div className="rx-nav-links"><Link href="/questions">Problems</Link><Link href="/contests">Contests</Link><Link href="/questions">Practice</Link><a href="#docs">Docs</a></div>
+      <div className="rx-nav-actions">{session ? <><span className="rx-user-chip">{session.user.name}</span><button className="rx-btn rx-btn-quiet" onClick={async () => { await authClient.signOut(); await refetch(); }}>Sign out</button></> : <><Link className="rx-btn rx-btn-quiet" href="/signin" onClick={event => { event.preventDefault(); setAuthMode("sign-in"); setShowAuth(true); }}>Sign in</Link><Link className="rx-btn rx-btn-primary rx-nav-cta" href="/signup" onClick={event => { event.preventDefault(); setAuthMode("sign-up"); setShowAuth(true); }}>Get started <span>↗</span></Link></>}</div>
+    </nav>
+>>>>>>> 0c99bd5 (oAuth updated)
 
-    <section className="rx-hero"><div className="rx-orbit rx-orbit-one"/><div className="rx-orbit rx-orbit-two"/><span className="rx-eyebrow">THE SPACE TO THINK IN CODE</span><h1>Make your next<br/><em>breakthrough.</em></h1><p>Sharpen your problem-solving instincts in a focused arena built for curious minds and ambitious builders.</p><div className="rx-hero-actions"><a className="rx-btn rx-btn-primary" href="#practice">Start practicing <span>↗</span></a><a className="rx-btn rx-btn-secondary" href="#problems">Explore problems</a></div>
+    <section className="rx-hero"><div className="rx-orbit rx-orbit-one"/><div className="rx-orbit rx-orbit-two"/><span className="rx-eyebrow">THE SPACE TO THINK IN CODE</span><h1>Make your next<br/><em>breakthrough.</em></h1><p>Sharpen your problem-solving instincts in a focused arena built for curious minds and ambitious builders.</p><div className="rx-hero-actions"><Link className="rx-btn rx-btn-primary" href="/questions">Start practicing <span>↗</span></Link><Link className="rx-btn rx-btn-secondary" href="/questions">Explore problems</Link></div>
       <div className="rx-preview rx-glass"><div className="rx-preview-top"><span><i/> LIVE WORKSPACE</span><span>PYTHON 3.11</span></div><div className="rx-preview-body"><div className="rx-preview-line"><b>01</b><code><i>def</i> solve<span>(</span>nums<span>):</span></code></div><div className="rx-preview-line"><b>02</b><code>&nbsp;&nbsp;<i>return</i> max<span>(</span>nums<span>)</span></code></div><div className="rx-preview-line"><b>03</b><code/></div><div className="rx-preview-status"><span>✓ All systems ready</span><strong>● 1,284 tests passed</strong></div></div></div>
       <div className="rx-float rx-float-a"><span>ACCEPTANCE</span><strong>98.6%</strong><small>↑ 4.2% this week</small></div><div className="rx-float rx-float-b"><span>STREAK</span><strong>07 <small>DAYS</small></strong></div>
     </section>
 
-    <section className="rx-stats" id="problems"><div><span>01 / PRACTICE</span><strong>Curated challenges</strong></div><div><span>02 / MOMENTUM</span><strong>Visible progress</strong></div><div><span>03 / COMMUNITY</span><strong>Better together</strong></div></section>
-
-    <section className="rx-workspace" id="practice"><header className="rx-section-heading"><div><span className="rx-eyebrow">YOUR WORKSPACE</span><h2>Think clearly.<br/><em>Ship confidently.</em></h2></div><span className="rx-muted">A quiet place to get into the flow.</span></header>
-      {!session && <div className="rx-auth-gate"><AuthCard/><p className="rx-muted">{isPending ? "Checking your session…" : "Sign in to run code and keep your progress."}</p></div>}
-      {session && <div className="rx-editor-layout"><article className="rx-problem rx-glass"><span className="rx-tag">ARRAYS · EASY</span><h3>Find the strongest signal</h3><p>Given a list of integers, return the largest value. The list contains at least one number.</p><div className="rx-example"><span>EXAMPLE</span><code>Input&nbsp; nums = [3, 8, 2, 5]<br/>Output&nbsp; 8</code></div><p className="rx-muted">Time limit: 2 seconds &nbsp;·&nbsp; Memory: 128 MB</p></article>
-        <form className="rx-code-card rx-glass" onSubmit={run}><div className="rx-editor-toolbar"><label>LANGUAGE <select value={languageId} onChange={event => setLanguageId(Number(event.target.value))}><option value={71}>Python 3</option><option value={63}>JavaScript</option><option value={54}>C++</option></select></label><button className="rx-btn rx-btn-primary rx-run" disabled={isRunning}>{isRunning ? "Running…" : "Run code"}<span>▶</span></button></div><label className="rx-editor-label" htmlFor="rx-code">SOURCE CODE</label><textarea id="rx-code" spellCheck={false} className="rx-code-input" value={sourceCode} onChange={event => setSourceCode(event.target.value)}/><label className="rx-editor-label" htmlFor="rx-stdin">STANDARD INPUT</label><textarea id="rx-stdin" className="rx-stdin" value={stdin} onChange={event => setStdin(event.target.value)} placeholder="Optional input…"/><div className="rx-console"><div><span>OUTPUT CONSOLE</span><i>● READY</i></div><pre>{result}</pre></div></form></div>}
-    </section>
+    <section className="rx-stats"><div><span>01 / PRACTICE</span><strong>Curated challenges</strong></div><div><span>02 / MOMENTUM</span><strong>Visible progress</strong></div><div><span>03 / COMMUNITY</span><strong>Better together</strong></div></section>
+    <section className="rx-workspace" id="docs"><header className="rx-section-heading"><div><span className="rx-eyebrow">READY WHEN YOU ARE</span><h2>Pick a problem.<br/><em>Find your flow.</em></h2></div><Link className="rx-btn rx-btn-primary" href="/questions">Browse questions <span>↗</span></Link></header></section>
     {showAuth && <div className="rx-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setShowAuth(false); }}><div className="rx-modal" ref={modalRef} role="dialog" aria-modal="true" aria-label={authMode === "sign-in" ? "Sign in to Algo Arena" : "Create an Algo Arena account"}><button className="rx-modal-close" onClick={() => setShowAuth(false)} aria-label="Close sign in">×</button><AuthCard initialMode={authMode}/></div></div>}
     <footer className="rx-footer"><Link className="rx-brand" href="/">ALGO<span>ARENA</span><b>®</b></Link><span>Made for the joy of solving.</span><span>© 2026 Algo Arena</span></footer>
   </main>;

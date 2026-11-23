@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "admin:promote": "tsx src/promote-admin.ts",
+    "seed:questions": "prisma generate && tsx src/seed-questions.ts",
     "dev": "prisma generate && tsx watch src/index.ts",
     "build": "prisma generate && tsc",
     "prisma:generate": "prisma generate",

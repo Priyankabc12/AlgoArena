@@ -13,7 +13,7 @@ export default function PythonEditor({
 }: PythonEditorProps) {
   return (
     <Editor
-      height="600px"
+      height="440px"
       defaultLanguage="python"
       value={code}
       onChange={(value) => onChange(value ?? "")}
