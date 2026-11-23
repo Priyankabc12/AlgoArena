@@ -46,30 +46,10 @@ export default function Home() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [showAuth]);
 
-<<<<<<< HEAD
-  async function run(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (isRunning || !session) return;
-    setIsRunning(true);
-    try {
-      const response = await fetch(`${apiUrl}/execute`, {
-        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source_code: sourceCode, language_id: languageId, stdin })
-      });
-      const data = await response.json();
-      setResult(response.ok ? JSON.stringify(data, null, 2) : data.error ?? "Execution failed.");
-    } catch {
-      setResult("The API is unavailable. Start the API and Judge0, then try again.");
-    } finally { setIsRunning(false); }
-  }
-
-return <main className="rx-shell">
-=======
   return <main className="rx-shell">
-    <nav className="rx-nav"><Link className="rx-brand" href="/">ALGO<span>ARENA</span><b>®</b></Link><div className="rx-nav-links"><Link href="/questions">Problems</Link><Link href="/contests">Contests</Link><Link href="/questions">Practice</Link><a href="#docs">Docs</a></div>
-      <div className="rx-nav-actions">{session ? <><span className="rx-user-chip">{session.user.name}</span><button className="rx-btn rx-btn-quiet" onClick={async () => { await authClient.signOut(); await refetch(); }}>Sign out</button></> : <><Link className="rx-btn rx-btn-quiet" href="/signin" onClick={event => { event.preventDefault(); setAuthMode("sign-in"); setShowAuth(true); }}>Sign in</Link><Link className="rx-btn rx-btn-primary rx-nav-cta" href="/signup" onClick={event => { event.preventDefault(); setAuthMode("sign-up"); setShowAuth(true); }}>Get started <span>↗</span></Link></>}</div>
+    <nav className="rx-nav"><Link className="rx-brand" href="/">ALGO<span>ARENA</span><b>®</b></Link><div className="rx-nav-links"><Link href="/questions">Problems</Link><Link href="/contests">Contests</Link><Link href="/questions">Practice</Link><Link href="/playground">Playground</Link><a href="#docs">Docs</a></div>
+      <div className="rx-nav-actions">{session ? <><Link className="rx-user-chip" href="/profile" aria-label="Profile">{session.user.name}</Link>{session.user.role === "admin" && <Link className="rx-btn rx-btn-quiet" href="/admin">Admin</Link>}<button className="rx-btn rx-btn-quiet" onClick={async () => { await authClient.signOut(); await refetch(); }}>Sign out</button></> : <><Link className="rx-btn rx-btn-quiet" href="/signin" onClick={event => { event.preventDefault(); setAuthMode("sign-in"); setShowAuth(true); }}>Sign in</Link><Link className="rx-btn rx-btn-primary rx-nav-cta" href="/signup" onClick={event => { event.preventDefault(); setAuthMode("sign-up"); setShowAuth(true); }}>Get started <span>↗</span></Link></>}</div>
     </nav>
->>>>>>> 0c99bd5 (oAuth updated)
 
     <section className="rx-hero"><div className="rx-orbit rx-orbit-one"/><div className="rx-orbit rx-orbit-two"/><span className="rx-eyebrow">THE SPACE TO THINK IN CODE</span><h1>Make your next<br/><em>breakthrough.</em></h1><p>Sharpen your problem-solving instincts in a focused arena built for curious minds and ambitious builders.</p><div className="rx-hero-actions"><Link className="rx-btn rx-btn-primary" href="/questions">Start practicing <span>↗</span></Link><Link className="rx-btn rx-btn-secondary" href="/questions">Explore problems</Link></div>
       <div className="rx-preview rx-glass"><div className="rx-preview-top"><span><i/> LIVE WORKSPACE</span><span>PYTHON 3.11</span></div><div className="rx-preview-body"><div className="rx-preview-line"><b>01</b><code><i>def</i> solve<span>(</span>nums<span>):</span></code></div><div className="rx-preview-line"><b>02</b><code>&nbsp;&nbsp;<i>return</i> max<span>(</span>nums<span>)</span></code></div><div className="rx-preview-line"><b>03</b><code/></div><div className="rx-preview-status"><span>✓ All systems ready</span><strong>● 1,284 tests passed</strong></div></div></div>
@@ -79,6 +59,6 @@ return <main className="rx-shell">
     <section className="rx-stats"><div><span>01 / PRACTICE</span><strong>Curated challenges</strong></div><div><span>02 / MOMENTUM</span><strong>Visible progress</strong></div><div><span>03 / COMMUNITY</span><strong>Better together</strong></div></section>
     <section className="rx-workspace" id="docs"><header className="rx-section-heading"><div><span className="rx-eyebrow">READY WHEN YOU ARE</span><h2>Pick a problem.<br/><em>Find your flow.</em></h2></div><Link className="rx-btn rx-btn-primary" href="/questions">Browse questions <span>↗</span></Link></header></section>
     {showAuth && <div className="rx-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setShowAuth(false); }}><div className="rx-modal" ref={modalRef} role="dialog" aria-modal="true" aria-label={authMode === "sign-in" ? "Sign in to Algo Arena" : "Create an Algo Arena account"}><button className="rx-modal-close" onClick={() => setShowAuth(false)} aria-label="Close sign in">×</button><AuthCard initialMode={authMode}/></div></div>}
-    <footer className="rx-footer"><Link className="rx-brand" href="/">ALGO<span>ARENA</span><b>®</b></Link><span>Made for the joy of solving.</span><span>© 2026 Algo Arena</span></footer>
+    <footer className="rx-footer"><Link className="rx-brand" href="/">ALGO<span>ARENA</span><b>®</b></Link><Link href="/playground">Code playground</Link><span>© 2026 Algo Arena</span></footer>
   </main>;
 }
