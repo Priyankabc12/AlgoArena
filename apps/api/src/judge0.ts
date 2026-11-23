@@ -17,6 +17,9 @@ export type CaseExecutionResult = {
 
 type Judge0Response = {
   stdout?: string | null;
+  stderr?: string | null;
+  compile_output?: string | null;
+  message?: string | null;
   time?: string | null;
   memory?: number | null;
   status?: { id?: number; description?: string };
@@ -62,7 +65,9 @@ export async function executeWithJudge0(input: Judge0Input): Promise<CaseExecuti
       status: normalizeStatus(result.status),
       runtimeMs: Number.isFinite(seconds) ? seconds * 1_000 : null,
       memoryKb: typeof result.memory === "number" ? Math.round(result.memory) : null,
-      actualOutput: result.stdout ?? ""
+      // Judge0 writes compile and runtime diagnostics outside stdout. Keep them
+      // in the sample result so users can see why their run failed.
+      actualOutput: result.stdout ?? result.stderr ?? result.compile_output ?? result.message ?? ""
     };
   } catch (error) {
     if (error instanceof Judge0UnavailableError) throw error;
