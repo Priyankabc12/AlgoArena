@@ -1,10 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { authClient } from "../../app/auth-client";
-import QuestionNav from "./question-nav";
-
 import { apiRequest } from "../../app/api-request";
 import type { QuestionItem, QuestionList, SubmissionSummary } from "./question-types";
 
@@ -26,7 +24,8 @@ export default function QuestionCatalog() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [solved, setSolved] = useState<{ userId: string | undefined; slugs: Set<string> } | null>(null);
-  const tags = useMemo(() => Array.from(new Set(items.flatMap(question => question.tags))).sort(), [items]);
+  const [topics, setTopics] = useState<string[]>([]);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -42,6 +41,9 @@ export default function QuestionCatalog() {
         if (!response.ok) throw new Error("Could not load questions. Try refreshing the page.");
         const data = await response.json() as QuestionList;
         setItems(data.items);
+        if (!search.trim() && !difficulty && !tag) {
+          setTopics((current) => Array.from(new Set([...current, ...data.items.flatMap((question) => question.tags)])).sort());
+        }
         setTotal(data.total);
         setTotalPages(data.totalPages);
       } catch (fetchError) {
@@ -51,7 +53,7 @@ export default function QuestionCatalog() {
       }
     }, 180);
     return () => { window.clearTimeout(timeout); controller.abort(); };
-  }, [search, difficulty, tag, page]);
+  }, [search, difficulty, tag, page, retry]);
 
   useEffect(() => {
     const userId = session?.user.id;
@@ -81,20 +83,53 @@ export default function QuestionCatalog() {
 
   function clearFilters() { setSearch(""); setDifficulty(""); setTag(""); setPage(1); }
 
-  return <main className="rx-qpage">
-    <QuestionNav />
-    <section className="rx-qcontent">
-      <div className="rx-qheading"><div><span className="rx-eyebrow">THE PRACTICE SET</span><h1>Problems <em>to solve.</em></h1><p>Choose a challenge and work through it at your own pace.</p></div><div className="rx-q-total"><strong>{total}</strong><span>PROBLEMS</span></div></div>
-      <div className="rx-qtoolbar"><label className="rx-q-search"><span aria-hidden="true">⌕</span><input type="search" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} placeholder="Search by title or keyword" aria-label="Search questions" /></label>
-        <label className="rx-q-select"><span>Difficulty</span><select value={difficulty} onChange={event => { setDifficulty(event.target.value); setPage(1); }}><option value="">All levels</option><option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option></select></label>
-        <label className="rx-q-select"><span>Topic</span><select value={tag} onChange={event => { setTag(event.target.value); setPage(1); }}><option value="">All topics</option>{tags.map(currentTag => <option key={currentTag} value={currentTag}>{currentTag}</option>)}</select></label>
-        {(search || difficulty || tag) && <button className="rx-q-clear" type="button" onClick={clearFilters}>Clear filters</button>}
+  const filtered = Boolean(search || difficulty || tag);
+
+  return <main id="main-content" className="arena-page" tabIndex={-1}>
+    <div className="arena-container">
+      <header className="arena-page-heading">
+        <div><h1>Problems</h1><p>Choose a problem, test a solution, and submit it for judging.</p></div>
+        {!loading && !error && <span className="arena-meta" aria-live="polite">{total} {total === 1 ? "problem" : "problems"}</span>}
+      </header>
+      <div className="arena-filterbar">
+        <label className="arena-field arena-search">Search problems
+          <input type="search" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} placeholder="Title or slug" />
+        </label>
+        <label className="arena-field arena-filter">Difficulty
+          <select value={difficulty} onChange={event => { setDifficulty(event.target.value); setPage(1); }}>
+            <option value="">All levels</option><option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option>
+          </select>
+        </label>
+        <label className="arena-field arena-filter">Topic
+          <select value={tag} onChange={event => { setTag(event.target.value); setPage(1); }}>
+            <option value="">All topics</option>{topics.map(topic => <option key={topic} value={topic}>{topic}</option>)}
+          </select>
+        </label>
+        {filtered && <button className="rx-btn rx-btn-secondary" type="button" onClick={clearFilters}>Clear filters</button>}
       </div>
-      <div className="rx-q-table-wrap">
-        {error ? <div className="rx-q-empty"><h2>Questions aren’t available</h2><p>{error}</p><button className="rx-btn rx-btn-secondary" onClick={clearFilters}>Clear filters</button></div> : loading ? <div className="rx-q-loading" role="status">Loading questions…</div> : items.length === 0 ? <div className="rx-q-empty"><h2>No matching questions</h2><p>Try a different search or clear the filters.</p><button className="rx-btn rx-btn-secondary" onClick={clearFilters}>Clear filters</button></div> : <table className="rx-q-table"><thead><tr><th scope="col">Status</th><th scope="col">Title</th><th scope="col">Difficulty</th><th scope="col">Topics</th><th scope="col">Time</th></tr></thead><tbody>{items.map(question => <tr key={question.id}><td className="rx-q-index">{solved?.userId === session?.user.id && solved?.slugs.has(question.slug) ? <span className="rx-q-solved" aria-label="Solved">✓</span> : <span aria-label="Not solved">○</span>}</td><td><Link href={`/questions/${question.slug}`} className="rx-q-title">{question.title}<span aria-hidden="true">↗</span></Link></td><td><span className={difficultyClass(question.difficulty)}>{question.difficulty[0] + question.difficulty.slice(1).toLowerCase()}</span></td><td><div className="rx-q-tags">{question.tags.map(currentTag => <span key={currentTag}>{currentTag}</span>)}</div></td><td className="rx-q-time">{question.timeLimit}s</td></tr>)}</tbody></table>}
-      </div>
-      {!loading && !error && totalPages > 1 && <nav className="rx-q-pagination" aria-label="Question pages"><button className="rx-btn rx-btn-secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>← Previous</button><span>Page {page} of {totalPages}</span><button className="rx-btn rx-btn-secondary" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next →</button></nav>}
-      <p className="rx-q-footnote">Showing {items.length} of {total} questions</p>
-    </section>
+      {error ? <div className="arena-state" role="alert"><h2>Couldn’t load problems</h2><p>{error}</p>
+        <button className="rx-btn rx-btn-secondary" type="button" onClick={() => setRetry(retry + 1)}>Retry</button>
+      </div> : loading ? <div className="arena-state" role="status">Loading problems…</div>
+        : items.length === 0 ? <div className="arena-state">
+          <h2>{filtered ? "No matching problems" : "No problems yet"}</h2>
+          {filtered && <><p>Try a different search or reset the filters.</p><button className="rx-btn rx-btn-secondary" type="button" onClick={clearFilters}>Clear filters</button></>}
+        </div> : <div className="arena-table-frame">
+          <table className="arena-table">
+            <thead><tr><th scope="col">Problem</th><th scope="col">Difficulty</th><th scope="col" className="arena-wide-col">Topics</th><th scope="col" className="arena-wide-col">Time limit</th>{session && <th scope="col" className="arena-column-end">Progress</th>}</tr></thead>
+            <tbody>{items.map(question => <tr key={question.id}>
+              <th scope="row"><Link href={"/questions/" + encodeURIComponent(question.slug)}>{question.title}</Link></th>
+              <td><span className={difficultyClass(question.difficulty)}>{question.difficulty[0] + question.difficulty.slice(1).toLowerCase()}</span></td>
+              <td className="arena-wide-col"><div className="rx-q-tags">{question.tags.map(topic => <span key={topic}>{topic}</span>)}</div></td>
+              <td className="arena-wide-col arena-meta">{question.timeLimit} s</td>
+              {session && <td className="arena-column-end">{solved?.userId === session.user.id ? (solved.slugs.has(question.slug) ? <span className="arena-text-success">Solved</span> : <span className="arena-muted">Unsolved</span>) : <span className="arena-muted">—</span>}</td>}
+            </tr>)}</tbody>
+          </table>
+        </div>}
+      {!loading && !error && totalPages > 1 && <nav className="arena-pagination" aria-label="Problem pages">
+        <button className="rx-btn rx-btn-secondary" type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button>
+        <span aria-live="polite">Page {page} of {totalPages}</span>
+        <button className="rx-btn rx-btn-secondary" type="button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</button>
+      </nav>}
+    </div>
   </main>;
 }

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { ApiError, apiRequest } from "../../app/api-request";
 import { authClient } from "../../app/auth-client";
-import QuestionNav from "./question-nav";
 import styles from "./practice-tools.module.css";
 
 type JudgeResult = {
@@ -31,11 +30,9 @@ export default function Playground() {
     return () => controller.abort();
   }, [healthAttempt]);
 
-  return <main className="rx-qpage">
-    <QuestionNav />
-    <div className={styles.content}>
-      <h1>Code playground</h1>
-      <p>Run code with your own input and inspect the compiler or program output.</p>
+  return <main id="main-content" className="arena-page" tabIndex={-1}>
+    <div className="arena-container">
+      <header className="arena-page-heading"><div><h1>Code playground</h1><p>Run code with your own input and inspect its output.</p></div></header>
       <p className={styles.health} role="status">{reachable === null ? "Checking API…" : reachable ? "API reachable" : "API unavailable"}
         {reachable === false && <button className="rx-btn rx-btn-quiet" type="button" onClick={() => setHealthAttempt(healthAttempt + 1)}>Retry connection</button>}
       </p>
@@ -83,18 +80,18 @@ function Runner({ signedIn, checkingSession }: { signedIn: boolean; checkingSess
   }
 
   return <div className={styles.workbench}>
-    <form className={styles.panel} onSubmit={run}>
-      <label>Judge0 language ID<input type="number" name="language" defaultValue="71" min="1" step="1" required /></label>
-      <div><label htmlFor="playground-source">Source code</label><textarea id="playground-source" name="code" rows={10} defaultValue={'print("Hello, world!")'} required /></div>
-      <label>Standard input<textarea name="input" rows={4} /></label>
+    <form className="arena-panel" onSubmit={run}>
+      <label className="arena-field">Judge0 language ID<input type="number" name="language" defaultValue="71" min="1" step="1" required /></label>
+      <div className="arena-field"><label htmlFor="playground-source">Source code</label><textarea id="playground-source" className="arena-code-input" name="code" rows={10} defaultValue={'print("Hello, world!")'} required /></div>
+      <label className="arena-field">Standard input<textarea className="arena-code-input" name="input" rows={4} /></label>
       {checkingSession ? <p role="status">Checking your session…</p>
         : !signedIn || expired ? <Link className="rx-btn rx-btn-primary" href="/signin?returnTo=%2Fplayground">Sign in to run</Link>
         : <button className="rx-btn rx-btn-primary" type="submit" disabled={busy}>{busy ? "Running…" : "Run code"}</button>}
     </form>
-    <section className={styles.panel} aria-live="polite">
-      <h2>Execution output</h2>
+    <section className={"arena-panel " + styles.panel} aria-live="polite">
+      <h2 className="arena-section-title">Execution output</h2>
       {busy ? <p role="status">Waiting for Judge0…</p>
-        : error ? <p role="alert" className={styles.error}>{error}</p>
+        : error ? <p role="alert" className="arena-error">{error}</p>
         : result ? <>
           <p><strong>{result.status?.description ?? "No verdict returned"}</strong></p>
           <dl className={styles.outputs}>

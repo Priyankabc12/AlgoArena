@@ -287,182 +287,110 @@ export default function ProfilePage() {
     }
   }
 
-  if (isSessionPending && !isSessionExpired) {
-    return (
-      <main className={styles.page}>
-        <div className={styles.loadingScreen} role="status">Checking your session…</div>
-      </main>
-    );
-  }
-
-  if (session && !isSessionExpired && dataSessionId !== sessionId) {
-    return (
-      <main className={styles.page}>
-        <div className={styles.loadingScreen} role="status">Loading your private profile…</div>
-      </main>
-    );
+  const waitingForAccount = session && !isSessionExpired && dataSessionId !== sessionId;
+  if ((isSessionPending && !isSessionExpired) || waitingForAccount) {
+    return <main id="main-content" className="arena-page" tabIndex={-1}>
+      <div className="arena-container"><div className="arena-state" role="status">Loading profile…</div></div>
+    </main>;
   }
 
   if (!session || isSessionExpired) {
-    return (
-      <main className={styles.page}>
-        <header className={styles.topbar}>
-          <Link className={styles.brand} href="/" aria-label="AlgoArena home"><span className={styles.brandMark}>A</span>AlgoArena</Link>
-          <nav className={styles.navLinks} aria-label="Main navigation"><Link href="/questions">Problems</Link></nav>
-        </header>
-        <section className={styles.signedOutCard}>
-          <span className={styles.eyebrow}>YOUR PRACTICE, IN ONE PLACE</span>
-          <h1>{isSessionExpired ? "Your session expired" : "Sign in to view your profile"}</h1>
-          <p>Your account details, progress, and submission history are private to you.</p>
-          <Link className={styles.primaryLink} href="/signin?returnTo=%2Fprofile">Sign in to AlgoArena <span aria-hidden="true">→</span></Link>
-          <Link className={styles.secondaryLink} href="/">Back to home</Link>
+    return <main id="main-content" className="arena-page" tabIndex={-1}>
+      <div className="arena-container">
+        <header className="arena-page-heading"><h1>{isSessionExpired ? "Your session expired" : "Sign in to view your profile"}</h1></header>
+        <section className="arena-state">
+          <p>Sign in to see your account details, progress, and saved submissions.</p>
+          <div className="arena-action-row">
+            <Link className="rx-btn rx-btn-primary" href="/signin?returnTo=%2Fprofile">Sign in</Link>
+            <Link className="rx-btn rx-btn-secondary" href="/questions">Browse problems</Link>
+          </div>
         </section>
-      </main>
-    );
+      </div>
+    </main>;
   }
 
-  return (
-    <main className={styles.page}>
-      <header className={styles.topbar}>
-        <div className={styles.topbarInner}>
-          <Link className={styles.brand} href="/" aria-label="AlgoArena home"><span className={styles.brandMark}>A</span>AlgoArena</Link>
-          <nav className={styles.navLinks} aria-label="Main navigation">
-            <Link href="/questions">Problems</Link>
-            <Link className={styles.activeNav} href="/profile" aria-current="page">Profile</Link>
-          </nav>
-          <div className={styles.userMenu}>
-            <span className={styles.userInitial}>{getInitials(profile?.name ?? session.user.name)}</span>
-            <span className={styles.topbarName}>{profile?.name ?? session.user.name}</span>
-            <button className={styles.signOutButton} type="button" onClick={() => { void authClient.signOut(); }}>Sign out</button>
+  const profileName = profile?.name ?? session.user.name;
+
+  return <main id="main-content" className="arena-page" tabIndex={-1}>
+    <div className="arena-container">
+      <header className="arena-page-heading">
+        <div className={styles.identity}>
+          <span className={styles.avatar} aria-hidden="true">{getInitials(profileName)}</span>
+          <div>
+            <h1>{profileName}</h1>
+            <p>{profile?.email ?? session.user.email}</p>
+            {profile && <time className={"arena-meta " + styles.dates} dateTime={profile.createdAt}>Member since {formatDate(profile.createdAt)}</time>}
           </div>
         </div>
       </header>
 
-      <div className={styles.content}>
-        <div className={styles.breadcrumb}><Link href="/">Home</Link><span aria-hidden="true">/</span><span>Profile</span></div>
+      <dl className={styles.stats} aria-label="Practice statistics">
+        <div><dt>Submissions</dt><dd>{statsLoading ? "…" : statsError ? "—" : stats?.totalSubmissions ?? 0}</dd></div>
+        <div><dt>Problems solved</dt><dd>{statsLoading ? "…" : statsError ? "—" : stats?.solvedQuestions ?? 0}</dd></div>
+      </dl>
+      {statsLoading && <p className="arena-meta" role="status">Loading practice statistics…</p>}
+      {statsError && <div className={"arena-error arena-action-row " + styles.feedback} role="alert">
+        <span>{statsError}</span><button className="rx-btn rx-btn-secondary" type="button" onClick={() => setStatsRetry((value) => value + 1)}>Retry stats</button>
+      </div>}
 
-        <section className={styles.profileHero} aria-labelledby="profile-heading">
-          <div className={styles.avatar} aria-hidden="true">{getInitials(profile?.name ?? session.user.name)}</div>
-          <div className={styles.heroCopy}>
-            <span className={styles.eyebrow}>ACCOUNT OVERVIEW</span>
-            {accountLoading ? <div className={styles.skeletonTitle} aria-label="Loading account" /> : (
-              <h1 id="profile-heading">{profile?.name ?? "Your profile"}</h1>
-            )}
-            <p>{profile?.email ?? session.user.email}</p>
-            <div className={styles.memberLine}>
-              <span className={styles.memberDot} aria-hidden="true" />
-              {profile ? `Member since ${formatDate(profile.createdAt)}` : "Private account"}
-            </div>
+      <section className={"arena-panel " + styles.account} aria-labelledby="account-heading">
+        <header className="arena-section-head"><h2 className="arena-section-title" id="account-heading">Account</h2></header>
+        {profile ? <div className={styles.accountGrid}>
+          <div>
+            <p className="arena-meta">Email address</p>
+            <strong>{profile.email}</strong>
           </div>
-          <div className={styles.heroBadge}><span aria-hidden="true">◆</span> MEMBER</div>
-        </section>
+          <form onSubmit={saveName}>
+            <div className={styles.nameControls}>
+              <label className="arena-field" htmlFor="display-name">Display name
+                <input id="display-name" name="name" value={draftName} maxLength={50} required
+                  aria-invalid={Boolean(nameError)} aria-describedby={nameError ? "display-name-error" : undefined}
+                  onChange={(event) => { setDraftName(event.target.value); setNameError(""); setSaveNotice(""); }} disabled={isSaving} />
+              </label>
+              <button className="rx-btn rx-btn-primary" type="submit" disabled={isSaving || draftName.trim() === profile.name}>{isSaving ? "Saving…" : "Save"}</button>
+              <button className="rx-btn rx-btn-secondary" type="button" onClick={() => { setDraftName(profile.name); setNameError(""); setSaveNotice(""); }} disabled={isSaving || draftName === profile.name}>Cancel</button>
+            </div>
+            {nameError && <p className="arena-error" id="display-name-error" role="alert">{nameError}</p>}
+            {saveNotice && <p className="arena-success" role="status">{saveNotice}</p>}
+          </form>
+        </div> : accountLoading ? <p className="arena-meta" role="status">Loading account details…</p> : <div className="arena-error arena-action-row" role="alert">
+          <span>{accountError || "Account details are unavailable."}</span>
+          <button className="rx-btn rx-btn-secondary" type="button" onClick={() => setAccountRetry((value) => value + 1)}>Retry account details</button>
+        </div>}
+      </section>
 
-        {accountError && (
-          <div className={styles.inlineError} role="alert">
-            <span>{accountError}</span>
-            <button type="button" onClick={() => setAccountRetry((value) => value + 1)}>Retry account load</button>
+      <section aria-labelledby="history-heading">
+        <header className="arena-section-head"><h2 className="arena-section-title" id="history-heading">Submission history</h2></header>
+        {historyLoading ? <div className="arena-state" role="status">Loading submissions…</div>
+          : historyError ? <div className="arena-state" role="alert">
+            <h3>Couldn’t load submissions</h3><p>{historyError}</p>
+            <button className="rx-btn rx-btn-secondary" type="button" onClick={() => setHistoryRetry((value) => value + 1)}>Retry history</button>
           </div>
-        )}
-
-        <section className={styles.statsGrid} aria-label="Practice statistics">
-          <article className={styles.statCard}>
-            <span className={styles.statIcon} aria-hidden="true">↗</span>
-            <div><p className={styles.statLabel}>SUBMISSIONS</p>
-              {statsLoading ? <div className={styles.skeletonValue} aria-label="Loading submissions" /> : statsError ? <span className={styles.statUnavailable}>Unavailable</span> : <p className={styles.statValue}>{stats?.totalSubmissions ?? 0}</p>}
-            </div>
-            <span className={styles.statFootnote}>All attempts</span>
-          </article>
-          <article className={`${styles.statCard} ${styles.solvedCard}`}>
-            <span className={`${styles.statIcon} ${styles.solvedIcon}`} aria-hidden="true">✓</span>
-            <div><p className={styles.statLabel}>PROBLEMS SOLVED</p>
-              {statsLoading ? <div className={styles.skeletonValue} aria-label="Loading solved problems" /> : statsError ? <span className={styles.statUnavailable}>Unavailable</span> : <p className={styles.statValue}>{stats?.solvedQuestions ?? 0}</p>}
-            </div>
-            <span className={styles.statFootnote}>Unique problems</span>
-          </article>
-          <aside className={styles.statsNote}>
-            <span className={styles.noteIcon} aria-hidden="true">✦</span>
-            <p>Every attempt is a step forward. Keep practicing and your progress will grow here.</p>
-          </aside>
-        </section>
-        {statsError && <div className={styles.retryLine}><span role="alert">Stats couldn’t be loaded: {statsError}</span><button type="button" onClick={() => setStatsRetry((value) => value + 1)}>Retry stats</button></div>}
-
-        <section className={styles.accountPanel} aria-labelledby="account-heading">
-          <div className={styles.sectionHeader}>
-            <div><span className={styles.eyebrow}>PERSONAL DETAILS</span><h2 id="account-heading">Account</h2></div>
-            <span className={styles.privateBadge}><span aria-hidden="true">●</span> Private</span>
+          : submissions.length === 0 ? <div className="arena-state">
+            <h3>No submissions yet</h3><p>Submit a solution to see the verdict and test results here.</p>
+            <Link href="/questions" className="rx-btn rx-btn-primary">Browse problems</Link>
           </div>
-          {profile ? (
-            <div className={styles.accountGrid}>
-              <div className={styles.readonlyField}><span className={styles.fieldLabel}>Email address</span><span className={styles.readonlyValue}>{profile.email}</span><span className={styles.fieldHint}>Email is managed by your account settings.</span></div>
-              <form className={styles.nameForm} onSubmit={saveName}>
-                <label className={styles.fieldLabel} htmlFor="display-name">Display name</label>
-                <div className={styles.nameControls}>
-                  <input id="display-name" name="name" value={draftName} maxLength={50} onChange={(event) => { setDraftName(event.target.value); setNameError(""); setSaveNotice(""); }} disabled={isSaving} />
-                  <button className={styles.saveButton} type="submit" disabled={isSaving || draftName.trim() === profile.name}>{isSaving ? "Saving…" : "Save"}</button>
-                  <button className={styles.cancelButton} type="button" onClick={() => { setDraftName(profile.name); setNameError(""); setSaveNotice(""); }} disabled={isSaving || draftName === profile.name}>Cancel</button>
-                </div>
-                {nameError && <p className={styles.fieldError} role="alert">{nameError}</p>}
-                {saveNotice && <p className={styles.saveSuccess} role="status">{saveNotice}</p>}
-                {!nameError && !saveNotice && <p className={styles.fieldHint}>Choose a name up to 50 characters.</p>}
-              </form>
+          : <>
+            <div className="arena-table-frame">
+              <table className="arena-table">
+                <thead><tr><th scope="col">Problem</th><th scope="col">Verdict</th><th scope="col" className="arena-wide-col">Language</th><th scope="col" className="arena-wide-col">Submitted</th></tr></thead>
+                <tbody>{submissions.map((submission) => <tr key={submission.id}>
+                  <th scope="row"><Link href={"/submissions/" + encodeURIComponent(submission.id)}>{submission.question.title}</Link>
+                    <time className={"arena-meta " + styles.mobileDate} dateTime={submission.createdAt}>{formatDate(submission.createdAt, true)}</time>
+                  </th>
+                  <td><span className={styles.verdict + (submission.status === "ACCEPTED" ? " " + styles.accepted : "")}>{readableVerdict(submission.status)}</span></td>
+                  <td className="arena-wide-col">{submission.language}</td>
+                  <td className="arena-wide-col"><time className="arena-meta" dateTime={submission.createdAt}>{formatDate(submission.createdAt, true)}</time></td>
+                </tr>)}</tbody>
+              </table>
             </div>
-          ) : accountLoading ? <p className={styles.loadingInline} role="status">Loading account details…</p> : <p className={styles.loadingInline}>Account details are unavailable. Retry to try again.</p>}
-        </section>
-
-        <section className={styles.historyPanel} aria-labelledby="history-heading">
-          <div className={styles.sectionHeader}>
-            <div><span className={styles.eyebrow}>YOUR CODING PRACTICE</span><h2 id="history-heading">Submission history</h2></div>
-            {!historyLoading && !historyError && <span className={styles.pageCount}>Page {historyPage}</span>}
-          </div>
-
-          {historyLoading ? (
-            <div className={styles.historyLoading} role="status"><span className={styles.spinner} aria-hidden="true" />Loading submissions…</div>
-          ) : historyError ? (
-            <div className={styles.historyMessage}>
-              <p role="alert">Couldn’t load submission history: {historyError}</p>
-              <button className={styles.secondaryButton} type="button" onClick={() => setHistoryRetry((value) => value + 1)}>Retry history</button>
-            </div>
-          ) : submissions.length === 0 ? (
-            <div className={styles.emptyState}>
-              <span className={styles.emptyIcon} aria-hidden="true">⌁</span>
-              <h3>No submissions yet</h3>
-              <p>When you submit a solution, it will appear here.</p>
-              <Link href="/questions" className={styles.secondaryButton}>Browse problems</Link>
-            </div>
-          ) : (
-            <>
-              <div className={styles.tableWrap}>
-                <table className={styles.historyTable}>
-                  <thead><tr><th scope="col">Problem</th><th scope="col">Language</th><th scope="col">Verdict</th><th scope="col">Submitted</th></tr></thead>
-                  <tbody>{submissions.map((submission) => (
-                    <tr key={submission.id}>
-                      <td className={styles.problemTitle}><Link href={"/submissions/" + encodeURIComponent(submission.id)}>{submission.question.title}</Link></td>
-                      <td><span className={styles.languageTag}>{submission.language}</span></td>
-                      <td><span className={`${styles.verdict} ${submission.status === "ACCEPTED" ? styles.accepted : ""}`}><span className={styles.verdictDot} aria-hidden="true" />{readableVerdict(submission.status)}</span></td>
-                      <td className={styles.dateCell}>{formatDate(submission.createdAt, true)}</td>
-                    </tr>
-                  ))}</tbody>
-                </table>
-              </div>
-              <div className={styles.mobileHistory}>
-                {submissions.map((submission) => (
-                  <article className={styles.mobileSubmission} key={submission.id}>
-                    <div className={styles.mobileSubmissionTop}><strong><Link href={"/submissions/" + encodeURIComponent(submission.id)}>{submission.question.title}</Link></strong><span className={`${styles.verdict} ${submission.status === "ACCEPTED" ? styles.accepted : ""}`}><span className={styles.verdictDot} aria-hidden="true" />{readableVerdict(submission.status)}</span></div>
-                    <div className={styles.mobileSubmissionMeta}><span>{submission.language}</span><time dateTime={submission.createdAt}>{formatDate(submission.createdAt, true)}</time></div>
-                  </article>
-                ))}
-              </div>
-              <nav className={styles.pagination} aria-label="Submission history pages">
-                <button className={styles.pageButton} type="button" onClick={() => setHistoryPage((page) => Math.max(1, page - 1))} disabled={historyPage <= 1}>← Previous</button>
-                <span aria-live="polite">Page {historyPage}</span>
-                <button className={styles.pageButton} type="button" onClick={() => setHistoryPage((page) => page + 1)} disabled={!hasNextPage}>Next →</button>
-              </nav>
-            </>
-          )}
-        </section>
-
-        <footer className={styles.footer}><span>ALGOARENA</span><span>Progress is built one problem at a time.</span><Link href="/questions">Explore problems</Link></footer>
-      </div>
-    </main>
-  );
+            {(historyPage > 1 || hasNextPage) && <nav className="arena-pagination" aria-label="Submission history pages">
+              <button className="rx-btn rx-btn-secondary" type="button" onClick={() => setHistoryPage((page) => Math.max(1, page - 1))} disabled={historyPage <= 1}>Previous</button>
+              <span aria-live="polite">Page {historyPage}</span>
+              <button className="rx-btn rx-btn-secondary" type="button" onClick={() => setHistoryPage((page) => page + 1)} disabled={!hasNextPage}>Next</button>
+            </nav>}
+          </>}
+      </section>
+    </div>
+  </main>;
 }

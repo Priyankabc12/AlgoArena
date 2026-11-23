@@ -26,6 +26,8 @@ export type CaseResult = {
   stdin?: string;
   expectedOutput?: string;
   actualOutput?: string;
+  stdout?: string;
+  diagnostic?: string;
 };
 
 export type ExecutionResponse = {

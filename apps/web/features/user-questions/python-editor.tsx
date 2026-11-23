@@ -13,7 +13,7 @@ export default function PythonEditor({
 }: PythonEditorProps) {
   return (
     <Editor
-      height="440px"
+      height="100%"
       defaultLanguage="python"
       value={code}
       onChange={(value) => onChange(value ?? "")}
@@ -22,7 +22,6 @@ export default function PythonEditor({
           aria-label="Python source code"
           value={code}
           onChange={(event) => onChange(event.target.value)}
-          style={{ width: "100%", height: "100%", background: "#1e1e1e", color: "#f2f0ea" }}
         />
       }
       theme="vs-dark"
@@ -31,27 +30,10 @@ export default function PythonEditor({
         minimap: {
           enabled: false,
         },
-        fontSize: 15,
+        fontSize: 14,
+        padding: { top: 10, bottom: 8 },
         automaticLayout: true,
       }}
     />
   );
 }
-/*Instead of using a normal <textarea>,
-
-we're using
-<Editor />
-
-which is Monaco Editor (the same editor used in VS Code).
-
-This gives us:
-
-✅ syntax highlighting
-
-✅ line numbers
-
-✅ auto indentation
-
-✅ bracket matching
-
-✅ VS Code feel*/

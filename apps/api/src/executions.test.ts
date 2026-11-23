@@ -19,7 +19,9 @@ async function startServer() {
     status: stdin.includes("hidden") ? SubmissionStatus.WRONG_ANSWER : SubmissionStatus.ACCEPTED,
     runtimeMs: 12,
     memoryKb: 2048,
-    actualOutput: stdin.includes("hidden") ? "wrong\n" : expectedOutput
+    actualOutput: stdin.includes("hidden") ? "wrong\n" : expectedOutput,
+    stdout: stdin.includes("hidden") ? "wrong\n" : expectedOutput,
+    diagnostic: stdin.includes("hidden") ? "hidden diagnostic" : undefined
   })));
 
   const server = await new Promise<ReturnType<typeof app.listen>>((resolve) => {
@@ -64,6 +66,31 @@ test("Judge0 client sends fixed Python configuration and normalizes metrics", as
     assert.equal(result.status, SubmissionStatus.ACCEPTED);
     assert.equal(result.runtimeMs, 12);
     assert.equal(result.memoryKb, 3012);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Judge0 preserves Python diagnostics after a program prints output", async () => {
+  const originalFetch = globalThis.fetch;
+  const traceback = 'File "script.py", line 2, in <module>\nEOFError: EOF when reading a line\n';
+  globalThis.fetch = async () => Response.json({
+    stdout: "starting\n",
+    stderr: traceback,
+    status: { id: 11, description: "Runtime Error" }
+  });
+
+  try {
+    const result = await executeWithJudge0({
+      sourceCode: "print('starting')\ninput()",
+      stdin: "",
+      expectedOutput: "",
+      timeLimit: 2,
+      memoryLimit: 128000
+    });
+    assert.equal(result.status, SubmissionStatus.RUNTIME_ERROR);
+    assert.equal(result.stdout, "starting\n");
+    assert.equal(result.diagnostic, traceback);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -154,7 +181,10 @@ test("run stays ephemeral while submit saves history and redacts hidden cases", 
     assert.equal(submitBody.results[1]?.isSample, false);
     assert.equal("stdin" in submitBody.results[1]!, false);
     assert.equal("expectedOutput" in submitBody.results[1]!, false);
+    assert.equal(submitBody.results[0]?.stdout, "5\n");
     assert.equal("actualOutput" in submitBody.results[1]!, false);
+    assert.equal("stdout" in submitBody.results[1]!, false);
+    assert.equal("diagnostic" in submitBody.results[1]!, false);
 
     const history = await fetch(`${server.baseUrl}/api/submissions?questionSlug=${slug}`, {
       headers: { Cookie: cookie }

@@ -115,7 +115,9 @@ function safeCaseResult(result: ExecutedCase) {
     ...common,
     stdin: result.stdin,
     expectedOutput: result.expectedOutput,
-    actualOutput: result.actualOutput
+    actualOutput: result.actualOutput,
+    stdout: result.stdout,
+    diagnostic: result.diagnostic
   } : common;
 }
 

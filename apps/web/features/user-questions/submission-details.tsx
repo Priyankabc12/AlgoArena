@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ApiError, apiRequest } from "../../app/api-request";
 import { authClient } from "../../app/auth-client";
-import QuestionNav from "./question-nav";
 import { statusLabel, type CaseResult, type SubmissionSummary } from "./question-types";
 import styles from "./practice-tools.module.css";
 
@@ -12,11 +11,10 @@ type Submission = SubmissionSummary & { sourceCode: string; results: CaseResult[
 
 export default function SubmissionDetails({ id }: { id: string }) {
   const { data: session, isPending, error, refetch } = authClient.useSession();
-  return <main className="rx-qpage">
-    <QuestionNav />
-    <div className={styles.content}>
-      <Link className={styles.back} href="/profile">Back to profile</Link>
-      <h1>Submission details</h1>
+  return <main id="main-content" className="arena-page" tabIndex={-1}>
+    <div className="arena-container">
+      <Link className="arena-link" href="/profile">Back to profile</Link>
+      <header className="arena-page-heading"><h1>Submission details</h1></header>
       {isPending ? <p role="status">Checking your session…</p>
         : error ? <div role="alert"><p>Could not check your session.</p><button className="rx-btn rx-btn-secondary" onClick={() => void refetch()}>Retry</button></div>
         : !session ? <SignIn id={id} />
@@ -51,14 +49,14 @@ function Details({ id }: { id: string }) {
   if (!data) return <p role="status">Loading submission…</p>;
 
   return <>
-    <header className={styles.panel}>
-      <h2><Link href={"/questions/" + encodeURIComponent(data.question.slug)}>{data.question.title}</Link></h2>
+    <header className={"arena-panel " + styles.panel}>
+      <h2 className="arena-section-title"><Link className="arena-link" href={"/questions/" + encodeURIComponent(data.question.slug)}>{data.question.title}</Link></h2>
       <p><strong>{statusLabel(data.status)}</strong> · {data.language} · <time dateTime={data.createdAt}>{new Date(data.createdAt).toLocaleString()}</time></p>
       <p>Runtime {data.runtimeMs ?? "—"}{data.runtimeMs !== null && " ms"} · Memory {data.memoryKb ?? "—"}{data.memoryKb !== null && " KB"}</p>
     </header>
-    <section className={styles.panel} aria-label="Source code"><h2>Source code</h2><pre><code>{data.sourceCode}</code></pre></section>
-    <section className={styles.panel} aria-label="Test case results">
-      <h2>Test case results</h2>
+    <section className={"arena-panel " + styles.panel} aria-label="Source code"><h2 className="arena-section-title">Source code</h2><pre><code>{data.sourceCode}</code></pre></section>
+    <section className={"arena-panel " + styles.panel} aria-label="Test case results">
+      <h2 className="arena-section-title">Test case results</h2>
       {!data.results.length && <p>No case results are available for this submission.</p>}
       {data.results.map((item) => <section className={styles.case} key={item.position}>
         <h3>{item.isSample ? "Sample" : "Hidden"} case {item.position + 1}</h3>
