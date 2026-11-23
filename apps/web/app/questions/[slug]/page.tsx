@@ -4,5 +4,5 @@ type Props = { params: Promise<{ slug: string }> };
 
 export default async function QuestionPage({ params }: Props) {
   const { slug } = await params;
-  return <QuestionWorkspace slug={slug} />;
+  return <QuestionWorkspace key={slug} slug={slug} />;
 }

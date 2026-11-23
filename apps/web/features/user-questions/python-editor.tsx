@@ -17,8 +17,17 @@ export default function PythonEditor({
       defaultLanguage="python"
       value={code}
       onChange={(value) => onChange(value ?? "")}
+      loading={
+        <textarea
+          aria-label="Python source code"
+          value={code}
+          onChange={(event) => onChange(event.target.value)}
+          style={{ width: "100%", height: "100%", background: "#1e1e1e", color: "#f2f0ea" }}
+        />
+      }
       theme="vs-dark"
       options={{
+        ariaLabel: "Python source code",
         minimap: {
           enabled: false,
         },

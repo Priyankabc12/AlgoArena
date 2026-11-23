@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { AuthCard } from "../../app/auth-card";
 import QuestionNav from "./question-nav";
 import PythonEditor from "./python-editor";
-import type { ExecutionResponse, QuestionDetail } from "./question-types";
+import { statusLabel, type ExecutionResponse, type QuestionDetail } from "./question-types";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const starterCode = `import sys
@@ -20,9 +20,6 @@ if __name__ == "__main__":
 `;
 
 function difficultyClass(difficulty: string) { return `rx-q-difficulty rx-q-${difficulty.toLowerCase()}`; }
-function statusLabel(status: string) {
-  return ({ ACCEPTED: "Accepted", WRONG_ANSWER: "Wrong answer", TIME_LIMIT_EXCEEDED: "Time limit exceeded", MEMORY_LIMIT_EXCEEDED: "Memory limit exceeded", COMPILATION_ERROR: "Compilation error", RUNTIME_ERROR: "Runtime error", INTERNAL_ERROR: "Internal error", PENDING: "Pending" } as Record<string, string>)[status] ?? status;
-}
 
 export default function QuestionWorkspace({ slug }: { slug: string }) {
   const [question, setQuestion] = useState<QuestionDetail | null>(null);
@@ -43,7 +40,7 @@ export default function QuestionWorkspace({ slug }: { slug: string }) {
         if (!response.ok) throw new Error(response.status === 404 ? "This question could not be found." : "Questions are unavailable right now.");
         return response.json() as Promise<QuestionDetail>;
       })
-      .then(setQuestion)
+      .then(data => { if (!controller.signal.aborted) setQuestion(data); })
       .catch(fetchError => { if (!controller.signal.aborted) setError(fetchError instanceof Error ? fetchError.message : "Could not load this question."); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
@@ -106,7 +103,7 @@ export default function QuestionWorkspace({ slug }: { slug: string }) {
           </div>
         </div>
         <section className="rx-lc-results rx-glass" aria-live="polite"><div className="rx-lc-result-tabs"><button type="button" className={resultTab === "testcases" ? "active" : ""} onClick={() => setResultTab("testcases")}>Test cases</button><button type="button" className={resultTab === "result" ? "active" : ""} onClick={() => setResultTab("result")}>Result</button>{result && <span className={result.status === "ACCEPTED" ? "rx-lc-status-ok" : "rx-lc-status-bad"}>{statusLabel(result.status)}</span>}</div>
-          <div className="rx-lc-result-body">{error ? <p className="rx-lc-error" role="alert">{error}</p> : busy ? <p className="rx-lc-muted" role="status">{busy === "run" ? "Running your code against the sample cases…" : "Submitting your solution against all test cases…"}</p> : result ? resultTab === "result" ? <><h2 className={result.status === "ACCEPTED" ? "rx-lc-status-ok" : "rx-lc-status-bad"}>{statusLabel(result.status)}</h2><p>{result.passed} / {result.total} test cases passed{result.mode === "run" ? " (sample cases)" : ""}</p>{result.submissionId && <p className="rx-lc-muted">Submission saved to your history.</p>}{result.status !== "ACCEPTED" && result.results.find(item => item.isSample)?.actualOutput && <pre className="rx-lc-diagnostic">{result.results.find(item => item.isSample)?.actualOutput?.trimEnd()}</pre>}<div className="rx-lc-result-metrics"><span>Runtime <b>{result.runtimeMs === null ? "—" : `${result.runtimeMs} ms`}</b></span><span>Memory <b>{result.memoryKb === null ? "—" : `${result.memoryKb} KB`}</b></span></div></> : <div className="rx-lc-test-list">{result.results.map(item => <article key={item.position}><div><span className={item.status === "ACCEPTED" ? "rx-lc-status-ok" : "rx-lc-status-bad"}>{item.status === "ACCEPTED" ? "✓" : "×"} Test case {item.position + 1}</span><span>{statusLabel(item.status)}</span></div>{item.isSample && <pre><b>Input:</b> {item.stdin || "(empty)"}{"\n"}<b>Expected:</b> {item.expectedOutput?.trimEnd()}{"\n"}<b>Output:</b> {item.actualOutput?.trimEnd()}</pre>}</article>)}</div> : <p className="rx-lc-muted">Run your code to see test case results here.</p>}</div>
+          <div className="rx-lc-result-body">{error ? <p className="rx-lc-error" role="alert">{error}</p> : busy ? <p className="rx-lc-muted" role="status">{busy === "run" ? "Running your code against the sample cases…" : "Submitting your solution against all test cases…"}</p> : result ? resultTab === "result" ? <><h2 className={result.status === "ACCEPTED" ? "rx-lc-status-ok" : "rx-lc-status-bad"}>{statusLabel(result.status)}</h2><p>{result.passed} / {result.total} test cases passed{result.mode === "run" ? " (sample cases)" : ""}</p>{result.submissionId && <p className="rx-lc-muted"><Link href={"/submissions/" + encodeURIComponent(result.submissionId)}>View saved submission</Link></p>}{result.status !== "ACCEPTED" && result.results.find(item => item.isSample)?.actualOutput && <pre className="rx-lc-diagnostic">{result.results.find(item => item.isSample)?.actualOutput?.trimEnd()}</pre>}<div className="rx-lc-result-metrics"><span>Runtime <b>{result.runtimeMs === null ? "—" : `${result.runtimeMs} ms`}</b></span><span>Memory <b>{result.memoryKb === null ? "—" : `${result.memoryKb} KB`}</b></span></div></> : <div className="rx-lc-test-list">{result.results.map(item => <article key={item.position}><div><span className={item.status === "ACCEPTED" ? "rx-lc-status-ok" : "rx-lc-status-bad"}>{item.status === "ACCEPTED" ? "✓" : "×"} Test case {item.position + 1}</span><span>{statusLabel(item.status)}</span></div>{item.isSample && <pre><b>Input:</b> {item.stdin || "(empty)"}{"\n"}<b>Expected:</b> {item.expectedOutput?.trimEnd()}{"\n"}<b>Output:</b> {item.actualOutput?.trimEnd()}</pre>}</article>)}</div> : <p className="rx-lc-muted">Run your code to see test case results here.</p>}</div>
         </section>
       </section>
     </div>

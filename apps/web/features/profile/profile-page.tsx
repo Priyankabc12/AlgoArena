@@ -314,7 +314,7 @@ export default function ProfilePage() {
           <span className={styles.eyebrow}>YOUR PRACTICE, IN ONE PLACE</span>
           <h1>{isSessionExpired ? "Your session expired" : "Sign in to view your profile"}</h1>
           <p>Your account details, progress, and submission history are private to you.</p>
-          <Link className={styles.primaryLink} href="/?returnTo=%2Fprofile">Sign in to AlgoArena <span aria-hidden="true">→</span></Link>
+          <Link className={styles.primaryLink} href="/signin?returnTo=%2Fprofile">Sign in to AlgoArena <span aria-hidden="true">→</span></Link>
           <Link className={styles.secondaryLink} href="/">Back to home</Link>
         </section>
       </main>
@@ -436,7 +436,7 @@ export default function ProfilePage() {
                   <thead><tr><th scope="col">Problem</th><th scope="col">Language</th><th scope="col">Verdict</th><th scope="col">Submitted</th></tr></thead>
                   <tbody>{submissions.map((submission) => (
                     <tr key={submission.id}>
-                      <td className={styles.problemTitle}>{submission.question.title}</td>
+                      <td className={styles.problemTitle}><Link href={"/submissions/" + encodeURIComponent(submission.id)}>{submission.question.title}</Link></td>
                       <td><span className={styles.languageTag}>{submission.language}</span></td>
                       <td><span className={`${styles.verdict} ${submission.status === "ACCEPTED" ? styles.accepted : ""}`}><span className={styles.verdictDot} aria-hidden="true" />{readableVerdict(submission.status)}</span></td>
                       <td className={styles.dateCell}>{formatDate(submission.createdAt, true)}</td>
@@ -447,7 +447,7 @@ export default function ProfilePage() {
               <div className={styles.mobileHistory}>
                 {submissions.map((submission) => (
                   <article className={styles.mobileSubmission} key={submission.id}>
-                    <div className={styles.mobileSubmissionTop}><strong>{submission.question.title}</strong><span className={`${styles.verdict} ${submission.status === "ACCEPTED" ? styles.accepted : ""}`}><span className={styles.verdictDot} aria-hidden="true" />{readableVerdict(submission.status)}</span></div>
+                    <div className={styles.mobileSubmissionTop}><strong><Link href={"/submissions/" + encodeURIComponent(submission.id)}>{submission.question.title}</Link></strong><span className={`${styles.verdict} ${submission.status === "ACCEPTED" ? styles.accepted : ""}`}><span className={styles.verdictDot} aria-hidden="true" />{readableVerdict(submission.status)}</span></div>
                     <div className={styles.mobileSubmissionMeta}><span>{submission.language}</span><time dateTime={submission.createdAt}>{formatDate(submission.createdAt, true)}</time></div>
                   </article>
                 ))}
